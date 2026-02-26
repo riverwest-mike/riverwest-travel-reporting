@@ -34,6 +34,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Mark any still-pending trips as rejected with the same reason
+    await db.trip.updateMany({
+      where: { reportId: params.id, tripStatus: 'PENDING' },
+      data: { tripStatus: 'REJECTED', tripRejectionReason: reason.trim(), tripRejectedById: manager.id },
+    })
+
     const updated = await db.expenseReport.update({
       where: { id: params.id },
       data: {

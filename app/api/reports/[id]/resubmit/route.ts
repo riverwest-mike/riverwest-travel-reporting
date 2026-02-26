@@ -23,7 +23,11 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'Only rejected reports can be resubmitted' }, { status: 409 })
     }
 
-    // Create a new DRAFT report pre-populated with the rejected report's trips
+    // Separate rejected trips from trips to carry forward
+    const rejectedTrips = original.trips.filter((t) => t.tripStatus === 'REJECTED')
+    const tripsToCarry = original.trips.filter((t) => t.tripStatus !== 'REJECTED')
+
+    // Create a new DRAFT report pre-populated with non-rejected trips
     const reportNumber = await generateReportNumber(original.periodMonth, original.periodYear)
 
     const newReport = await db.expenseReport.create({
@@ -36,10 +40,10 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         notes: original.notes,
         status: ReportStatus.DRAFT,
         parentReportId: original.id,
-        totalMiles: original.totalMiles,
-        totalAmount: original.totalAmount,
+        totalMiles: tripsToCarry.reduce((sum, t) => sum + (t.roundTrip ? t.distance * 2 : t.distance), 0),
+        totalAmount: 0,
         trips: {
-          create: original.trips.map((t) => ({
+          create: tripsToCarry.map((t) => ({
             date: t.date,
             originType: t.originType,
             originPropertyId: t.originPropertyId,
@@ -50,12 +54,20 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
             roundTrip: t.roundTrip,
             distance: t.distance,
             purpose: t.purpose,
+            tripStatus: 'PENDING',
           })),
         },
       },
     })
 
-    return NextResponse.json(newReport, { status: 201 })
+    // Recalculate totals for the new report
+    const { recalcReportTotals } = await import('@/lib/reports')
+    await recalcReportTotals(newReport.id, newReport.mileageRate)
+
+    return NextResponse.json(
+      { ...newReport, rejectedTrips },
+      { status: 201 }
+    )
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
