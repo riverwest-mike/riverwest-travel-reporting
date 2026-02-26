@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model Employee {
+  id          String  @id @default(cuid())
+  clerkUserId String? @unique
+  name        String
+  email       String  @unique
+  homeAddress String?
+  role        Role    @default(EMPLOYEE)
+  managerId   String?
+  isActive    Boolean @default(true)
+
+  manager       Employee?  @relation("EmployeeManager", fields: [managerId], references: [id])
+  directReports Employee[] @relation("EmployeeManager")
+
+  expenseReports  ExpenseReport[] @relation("EmployeeReports")
+  approvedReports ExpenseReport[] @relation("ApproverReports")
+  rejectedReports ExpenseReport[] @relation("RejectorReports")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Property {
+  id       String  @id @default(cuid())
+  name     String
+  address  String
+  city     String?
+  state    String?
+  isActive Boolean @default(true)
+
+  originTrips      Trip[] @relation("OriginProperty")
+  destinationTrips Trip[] @relation("DestinationProperty")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExpenseReport {
+  id            String       @id @default(cuid())
+  reportNumber  String       @unique
+  employeeId    String
+  status        ReportStatus @default(DRAFT)
+  periodMonth   Int
+  periodYear    Int
+  totalMiles    Float        @default(0)
+  totalAmount   Float        @default(0)
+  mileageRate   Float        @default(0.70)
+  notes         String?
+  submittedAt   DateTime?
+  approvedAt    DateTime?
+  rejectedAt    DateTime?
+  rejectionReason String?
+  approvedById  String?
+  rejectedById  String?
+  parentReportId String?
+
+  employee     Employee  @relation("EmployeeReports", fields: [employeeId], references: [id])
+  approvedBy   Employee? @relation("ApproverReports", fields: [approvedById], references: [id])
+  rejectedBy   Employee? @relation("RejectorReports", fields: [rejectedById], references: [id])
+  parentReport ExpenseReport?  @relation("ReportResubmissions", fields: [parentReportId], references: [id])
+  resubmissions ExpenseReport[] @relation("ReportResubmissions")
+
+  trips Trip[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId, periodYear, periodMonth])
+  @@index([status])
+}
+
+model Trip {
+  id                    String   @id @default(cuid())
+  reportId              String
+  date                  DateTime
+  originType            String
+  originPropertyId      String?
+  originAddress         String?
+  destinationType       String
+  destinationPropertyId String?
+  destinationAddress    String?
+  roundTrip             Boolean  @default(false)
+  distance              Float    @default(0)
+  purpose               String?
+
+  report              ExpenseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  originProperty      Property?     @relation("OriginProperty", fields: [originPropertyId], references: [id])
+  destinationProperty Property?     @relation("DestinationProperty", fields: [destinationPropertyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reportId])
+}
