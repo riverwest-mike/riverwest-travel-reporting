@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, MapPin, ArrowRight } from 'lucide-react'
+import { Loader2, MapPin, ArrowRight, AlertTriangle, Star, Trash2 } from 'lucide-react'
 
 interface Property {
   id: string
@@ -13,6 +13,17 @@ interface Property {
   address: string
   city: string | null
   state: string | null
+}
+
+interface ExistingTrip {
+  id: string
+  date: string | Date
+  originType: string
+  originPropertyId?: string | null
+  originAddress?: string | null
+  destinationType: string
+  destinationPropertyId?: string | null
+  destinationAddress?: string | null
 }
 
 interface TripInitialValues {
@@ -34,15 +45,36 @@ interface TripFormProps {
   onCancel: () => void
   hasHomeAddress: boolean
   editValues?: TripInitialValues
+  existingTrips?: ExistingTrip[]
 }
 
-export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editValues }: TripFormProps) {
+interface FavoriteTrip {
+  id: string
+  name: string
+  originType: string
+  originPropertyId: string | null
+  originAddress: string | null
+  originProperty: { id: string; name: string } | null
+  destinationType: string
+  destinationPropertyId: string | null
+  destinationAddress: string | null
+  destinationProperty: { id: string; name: string } | null
+  roundTrip: boolean
+}
+
+export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editValues, existingTrips = [] }: TripFormProps) {
   const isEdit = Boolean(editValues)
   const [properties, setProperties] = useState<Property[]>([])
+  const [favorites, setFavorites] = useState<FavoriteTrip[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [savingFavorite, setSavingFavorite] = useState(false)
+  const [showSaveFavorite, setShowSaveFavorite] = useState(false)
+  const [favoriteName, setFavoriteName] = useState('')
 
-  const [date, setDate] = useState(() => editValues?.date ?? new Date().toISOString().split('T')[0])
+  const today = new Date().toISOString().split('T')[0]
+  const [date, setDate] = useState(() => editValues?.date ?? today)
   const [originType, setOriginType] = useState(editValues?.originType ?? 'HOME')
   const [originPropertyId, setOriginPropertyId] = useState(editValues?.originPropertyId ?? '')
   const [originAddress, setOriginAddress] = useState(editValues?.originAddress ?? '')
@@ -57,7 +89,87 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
       .then((r) => r.json())
       .then(setProperties)
       .catch(console.error)
+    fetch('/api/favorite-trips')
+      .then((r) => r.json())
+      .then(setFavorites)
+      .catch(console.error)
   }, [])
+
+  function applyFavorite(fav: FavoriteTrip) {
+    setOriginType(fav.originType)
+    setOriginPropertyId(fav.originPropertyId ?? '')
+    setOriginAddress(fav.originAddress ?? '')
+    setDestType(fav.destinationType)
+    setDestPropertyId(fav.destinationPropertyId ?? '')
+    setDestAddress(fav.destinationAddress ?? '')
+    setRoundTrip(fav.roundTrip)
+    setShowFavorites(false)
+  }
+
+  async function handleSaveFavorite() {
+    if (!favoriteName.trim()) return
+    setSavingFavorite(true)
+    try {
+      const res = await fetch('/api/favorite-trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: favoriteName,
+          originType,
+          originPropertyId: originType === 'PROPERTY' ? originPropertyId : undefined,
+          originAddress: originType === 'OTHER' ? originAddress : undefined,
+          destinationType: destType,
+          destinationPropertyId: destType === 'PROPERTY' ? destPropertyId : undefined,
+          destinationAddress: destType === 'OTHER' ? destAddress : undefined,
+          roundTrip,
+        }),
+      })
+      if (res.ok) {
+        const newFav = await res.json()
+        setFavorites(prev => [...prev, newFav].sort((a, b) => a.name.localeCompare(b.name)))
+        setFavoriteName('')
+        setShowSaveFavorite(false)
+      }
+    } catch {
+      // silent
+    } finally {
+      setSavingFavorite(false)
+    }
+  }
+
+  async function handleDeleteFavorite(id: string) {
+    await fetch(`/api/favorite-trips/${id}`, { method: 'DELETE' })
+    setFavorites(prev => prev.filter(f => f.id !== id))
+  }
+
+  function favLabel(fav: FavoriteTrip) {
+    const from = fav.originType === 'HOME' ? 'Office'
+      : fav.originProperty?.name ?? fav.originAddress ?? '?'
+    const to = fav.destinationProperty?.name ?? fav.destinationAddress ?? '?'
+    return `${from} → ${to}${fav.roundTrip ? ' (R/T)' : ''}`
+  }
+
+  // Client-side duplicate check against existing trips on this report
+  function checkDuplicate(): boolean {
+    const tripDateStr = new Date(date).toDateString()
+    return existingTrips
+      .filter(t => !isEdit || t.id !== editValues?.tripId) // exclude self when editing
+      .some(t => {
+        if (new Date(t.date).toDateString() !== tripDateStr) return false
+        const sameOrigin = t.originType === originType && (
+          originType === 'PROPERTY' ? t.originPropertyId === originPropertyId
+            : originType === 'HOME' ? true
+            : t.originAddress === originAddress
+        )
+        const sameDest = t.destinationType === destType && (
+          destType === 'PROPERTY' ? t.destinationPropertyId === destPropertyId
+            : t.destinationAddress === destAddress
+        )
+        return sameOrigin && sameDest
+      })
+  }
+
+  const isDuplicate = date && (originType === 'HOME' || originPropertyId || originAddress) && (destPropertyId || destAddress) && checkDuplicate()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -99,10 +211,53 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Saved trips quick-fill */}
+      {!isEdit && favorites.length > 0 && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowFavorites(!showFavorites)}
+            className="text-sm text-navy-600 hover:underline underline-offset-2 flex items-center gap-1"
+          >
+            <Star className="h-3.5 w-3.5" />
+            {showFavorites ? 'Hide saved trips' : `Use saved trip (${favorites.length})`}
+          </button>
+          {showFavorites && (
+            <div className="rounded-md border border-navy-200 bg-navy-50/30 divide-y divide-navy-100">
+              {favorites.map(fav => (
+                <div key={fav.id} className="flex items-center justify-between px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-navy-700">{fav.name}</p>
+                    <p className="text-xs text-muted-foreground">{favLabel(fav)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyFavorite(fav)}
+                      className="text-xs text-navy-600 border border-navy-300 rounded px-2 py-1 hover:bg-navy-100 transition-colors"
+                    >
+                      Use
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFavorite(fav.id)}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                      title="Delete saved trip"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Date */}
       <div className="space-y-1.5">
         <Label>Date</Label>
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} max={today} required />
       </div>
 
       {/* Origin / Destination */}
@@ -161,8 +316,53 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
         />
       </div>
 
+      {isDuplicate && (
+        <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-300 px-3 py-2 rounded-md">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>This looks like a duplicate — a trip with the same date, origin, and destination already exists on this report. You can still save it if intentional.</span>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+      )}
+
+      {/* Save as favorite */}
+      {!isEdit && (
+        <div className="border-t pt-3">
+          {showSaveFavorite ? (
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Name this saved trip (e.g. Weekly property check)"
+                value={favoriteName}
+                onChange={(e) => setFavoriteName(e.target.value)}
+                className="text-sm h-8"
+                autoFocus
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleSaveFavorite}
+                disabled={savingFavorite || !favoriteName.trim()}
+              >
+                {savingFavorite ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowSaveFavorite(false); setFavoriteName('') }}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowSaveFavorite(true)}
+              className="text-xs text-muted-foreground hover:text-navy-600 flex items-center gap-1 underline-offset-2 hover:underline"
+            >
+              <Star className="h-3 w-3" />
+              Save this route as a favorite
+            </button>
+          )}
+        </div>
       )}
 
       <div className="flex justify-end gap-2 pt-2">

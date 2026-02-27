@@ -29,13 +29,14 @@ interface SidebarProps {
   role: Role
   employeeName: string
   pendingCount?: number
+  employeeActionCount?: number
 }
 
-export function Sidebar({ role, employeeName, pendingCount }: SidebarProps) {
+export function Sidebar({ role, employeeName, pendingCount, employeeActionCount }: SidebarProps) {
   const pathname = usePathname()
 
   const employeeNav: NavItem[] = [
-    { href: '/reports', label: 'My Reports', icon: FileText },
+    { href: '/reports', label: 'My Reports', icon: FileText, badge: employeeActionCount },
     { href: '/reports/new', label: 'New Report', icon: PlusCircle },
   ]
 

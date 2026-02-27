@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, BarChart3, Users, MapPin, TrendingUp, Loader2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Users, MapPin, TrendingUp, Loader2, Clock } from 'lucide-react'
 import { formatCurrency, formatMiles } from '@/lib/utils'
 
 interface Employee { id: string; name: string }
@@ -22,6 +22,11 @@ interface AnalyticsData {
   employeeStats: Array<{ id: string; name: string; trips: number; miles: number; amount: number }>
   topDestinations: Array<{ label: string; count: number; miles: number }>
   monthlyTrend: Array<{ label: string; trips: number; miles: number; amount: number }>
+  approvalMetrics: {
+    overallAvgDays: number | null
+    totalDecided: number
+    byManager: Array<{ id: string; name: string; avgDays: number; count: number; approved: number; rejected: number }>
+  } | null
 }
 
 const currentYear = new Date().getFullYear()
@@ -270,6 +275,62 @@ export default function AnalyticsPage() {
                                 <div
                                   className="h-full bg-navy-500 rounded-full"
                                   style={{ width: `${(m.miles / maxMiles) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    })()}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Approval time metrics */}
+          {data.approvalMetrics && data.approvalMetrics.totalDecided > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-navy-500" />
+                  Approval Time Metrics
+                  <span className="ml-auto text-xs font-normal text-muted-foreground bg-navy-50 border border-navy-200 px-2 py-0.5 rounded-full">
+                    {data.approvalMetrics.totalDecided} reports decided
+                    {data.approvalMetrics.overallAvgDays !== null && ` · Org avg: ${data.approvalMetrics.overallAvgDays}d`}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Manager</TableHead>
+                      <TableHead className="text-center">Avg Days to Decision</TableHead>
+                      <TableHead className="text-center">Reports Reviewed</TableHead>
+                      <TableHead className="text-center">Approved</TableHead>
+                      <TableHead className="text-center">Rejected</TableHead>
+                      <TableHead className="w-40">Speed</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const maxDays = Math.max(...data.approvalMetrics!.byManager.map(m => m.avgDays), 1)
+                      return data.approvalMetrics!.byManager.map((m) => (
+                        <TableRow key={m.id}>
+                          <TableCell className="text-sm font-medium">{m.name}</TableCell>
+                          <TableCell className="text-sm text-center tabular-nums font-medium">
+                            {m.avgDays} day{m.avgDays !== 1 ? 's' : ''}
+                          </TableCell>
+                          <TableCell className="text-sm text-center">{m.count}</TableCell>
+                          <TableCell className="text-sm text-center text-green-600">{m.approved}</TableCell>
+                          <TableCell className="text-sm text-center text-destructive">{m.rejected}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className="h-full bg-navy-500 rounded-full"
+                                  style={{ width: `${(m.avgDays / maxDays) * 100}%` }}
                                 />
                               </div>
                             </div>

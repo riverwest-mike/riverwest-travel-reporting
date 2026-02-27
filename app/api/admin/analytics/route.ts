@@ -111,6 +111,64 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, v]) => ({ ...v, miles: Math.round(v.miles * 10) / 10, amount: Math.round(v.amount * 100) / 100 }))
 
+    // ── Approval time metrics ──────────────────────────────────────────────────
+    // Fetch all decided reports (approved or rejected) that were also submitted
+    const decidedReports = await db.expenseReport.findMany({
+      where: {
+        status: { in: ['APPROVED', 'REJECTED'] },
+        submittedAt: { not: null },
+        deletedAt: null,
+        ...(year && { periodYear: year }),
+        ...(employeeId && { employeeId }),
+      },
+      select: {
+        id: true,
+        status: true,
+        submittedAt: true,
+        approvedAt: true,
+        rejectedAt: true,
+        approvedBy: { select: { id: true, name: true } },
+        rejectedBy: { select: { id: true, name: true } },
+      },
+    })
+
+    // Compute avg days from submission to decision per manager
+    const managerTimes: Record<string, { name: string; totalDays: number; count: number; approved: number; rejected: number }> = {}
+    let overallTotalDays = 0
+    let overallCount = 0
+
+    for (const r of decidedReports) {
+      const decisionDate = r.approvedAt ?? r.rejectedAt
+      if (!r.submittedAt || !decisionDate) continue
+      const daysToDecide = (decisionDate.getTime() - r.submittedAt.getTime()) / (1000 * 60 * 60 * 24)
+      const mgr = r.approvedBy ?? r.rejectedBy
+      if (!mgr) continue
+      if (!managerTimes[mgr.id]) {
+        managerTimes[mgr.id] = { name: mgr.name, totalDays: 0, count: 0, approved: 0, rejected: 0 }
+      }
+      managerTimes[mgr.id].totalDays += daysToDecide
+      managerTimes[mgr.id].count++
+      if (r.status === 'APPROVED') managerTimes[mgr.id].approved++
+      else managerTimes[mgr.id].rejected++
+      overallTotalDays += daysToDecide
+      overallCount++
+    }
+
+    const approvalMetrics = {
+      overallAvgDays: overallCount > 0 ? Math.round((overallTotalDays / overallCount) * 10) / 10 : null,
+      totalDecided: overallCount,
+      byManager: Object.entries(managerTimes)
+        .map(([id, v]) => ({
+          id,
+          name: v.name,
+          avgDays: Math.round((v.totalDays / v.count) * 10) / 10,
+          count: v.count,
+          approved: v.approved,
+          rejected: v.rejected,
+        }))
+        .sort((a, b) => a.avgDays - b.avgDays),
+    }
+
     return NextResponse.json({
       summary: {
         totalTrips,
@@ -121,6 +179,7 @@ export async function GET(request: NextRequest) {
       employeeStats,
       topDestinations,
       monthlyTrend,
+      approvalMetrics,
     })
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

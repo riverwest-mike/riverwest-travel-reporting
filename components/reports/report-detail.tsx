@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft, PlusCircle, Trash2, Pencil, Send, CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle
+  ArrowLeft, PlusCircle, Trash2, Pencil, Send, CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle, ShieldAlert
 } from 'lucide-react'
 import { formatCurrency, formatMiles, formatDate, formatPeriod } from '@/lib/utils'
 import { Role, ReportStatus } from '@prisma/client'
@@ -74,6 +75,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
 
   const isDraft = report.status === ReportStatus.DRAFT
   const isRejected = report.status === ReportStatus.REJECTED
+  const isAdmin = currentEmployee.role === Role.ADMIN
   const canEdit = isOwner && isDraft
   const canSubmit = isOwner && isDraft && report.trips.length > 0
   const canResubmit = isOwner && isRejected
@@ -82,6 +84,26 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
   const needsAttentionTrips = isDraft
     ? report.trips.filter((t) => t.tripStatus === 'PENDING' && t.tripRejectionReason)
     : []
+
+  // Admin delete state
+  const [showAdminDeleteDialog, setShowAdminDeleteDialog] = useState(false)
+  const [adminDeleteReason, setAdminDeleteReason] = useState('')
+
+  async function handleAdminDelete() {
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/reports/${report.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: adminDeleteReason }),
+      })
+      if (!res.ok) throw new Error('Failed to delete report')
+      router.push('/admin/reports')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error')
+      setActionLoading(false)
+    }
+  }
 
   async function refreshReport() {
     const res = await fetch(`/api/reports/${report.id}`)
@@ -207,6 +229,17 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
               <Trash2 className="h-4 w-4" /> Delete Draft
             </Button>
           )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdminDeleteDialog(true)}
+              disabled={actionLoading}
+              className="text-destructive hover:text-destructive border-destructive/40"
+            >
+              <ShieldAlert className="h-4 w-4" /> Admin Delete
+            </Button>
+          )}
         </div>
       </div>
 
@@ -312,6 +345,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                 onSuccess={handleTripAdded}
                 onCancel={() => setShowTripForm(false)}
                 hasHomeAddress={Boolean(currentEmployee.homeAddress)}
+                existingTrips={report.trips}
               />
             </div>
           )}
@@ -444,6 +478,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                                 onSuccess={handleTripAdded}
                                 onCancel={() => setEditingTrip(null)}
                                 hasHomeAddress={Boolean(currentEmployee.homeAddress)}
+                                existingTrips={report.trips}
                                 editValues={{
                                   tripId: trip.id,
                                   date: new Date(trip.date).toISOString().split('T')[0],
@@ -486,6 +521,42 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
               onClick={() => confirmDelete && handleDeleteTrip(confirmDelete)}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin delete report dialog */}
+      <Dialog open={showAdminDeleteDialog} onOpenChange={(o) => { if (!o) { setShowAdminDeleteDialog(false); setAdminDeleteReason('') } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" /> Admin Delete Report
+            </DialogTitle>
+            <DialogDescription>
+              This soft-deletes <strong>{report.reportNumber}</strong> and removes it from all views. The record is preserved for audit purposes. This action cannot be undone by employees.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Reason for deletion (optional)</p>
+            <Textarea
+              placeholder="e.g. Duplicate submission, test data, entered for wrong employee..."
+              value={adminDeleteReason}
+              onChange={(e) => setAdminDeleteReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAdminDeleteDialog(false); setAdminDeleteReason('') }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleAdminDelete}
+              disabled={actionLoading}
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
+              Delete Report
             </Button>
           </DialogFooter>
         </DialogContent>

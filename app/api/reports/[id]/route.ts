@@ -75,13 +75,31 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const employee = await requireEmployee()
     const report = await db.expenseReport.findUnique({ where: { id: params.id } })
 
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (report.employeeId !== employee.id && employee.role !== Role.ADMIN) {
+    if (report.deletedAt) return NextResponse.json({ error: 'Already deleted' }, { status: 410 })
+
+    if (employee.role === Role.ADMIN) {
+      // Admins soft-delete any report at any status with an optional reason
+      const body = await req.json().catch(() => ({}))
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : null
+      await db.expenseReport.update({
+        where: { id: params.id },
+        data: {
+          deletedAt: new Date(),
+          deletedById: employee.id,
+          deletionReason: reason || null,
+        },
+      })
+      return NextResponse.json({ success: true })
+    }
+
+    // Non-admins: only their own DRAFT reports, hard delete
+    if (report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     if (report.status !== ReportStatus.DRAFT) {
