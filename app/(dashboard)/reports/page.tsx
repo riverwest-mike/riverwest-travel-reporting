@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/reports/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { PlusCircle, FileText } from 'lucide-react'
+import { PlusCircle, FileText, AlertTriangle, RefreshCw, Pencil } from 'lucide-react'
 import { formatCurrency, formatMiles, formatPeriod } from '@/lib/utils'
 
 export default async function ReportsPage() {
@@ -27,6 +27,9 @@ export default async function ReportsPage() {
       .reduce((sum, r) => sum + r.totalAmount, 0),
   }
 
+  // Reports that need the employee's action
+  const actionNeeded = reports.filter(r => r.status === 'REJECTED' || r.status === 'DRAFT')
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -43,6 +46,42 @@ export default async function ReportsPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Action needed banner */}
+      {actionNeeded.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50/50">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-sm text-amber-700 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              {actionNeeded.length} report{actionNeeded.length > 1 ? 's' : ''} need{actionNeeded.length === 1 ? 's' : ''} your attention
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-4">
+            <div className="space-y-2">
+              {actionNeeded.map((r) => (
+                <div key={r.id} className="flex items-center justify-between bg-white rounded-md border border-amber-200 px-4 py-2.5">
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={r.status} />
+                    <span className="font-mono text-sm font-medium">{r.reportNumber}</span>
+                    <span className="text-sm text-muted-foreground">{formatPeriod(r.periodMonth, r.periodYear)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{r._count.trips} trip{r._count.trips !== 1 ? 's' : ''}</span>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/reports/${r.id}`}>
+                        {r.status === 'REJECTED'
+                          ? <><RefreshCw className="h-3.5 w-3.5" /> Review &amp; Resubmit</>
+                          : <><Pencil className="h-3.5 w-3.5" /> Edit &amp; Submit</>
+                        }
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

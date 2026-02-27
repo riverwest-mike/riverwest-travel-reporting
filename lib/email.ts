@@ -27,14 +27,14 @@ export async function sendReportToAccounting(opts: SendReportEmailOptions) {
   const accountingEmail = process.env.ACCOUNTING_EMAIL ?? 'controller@riverwestpartners.com'
 
   await transport.sendMail({
-    from: process.env.SMTP_FROM ?? `"RiverWest Travel" <${process.env.SMTP_USER}>`,
+    from: process.env.SMTP_FROM ?? `"RiverWest Properties" <${process.env.SMTP_USER}>`,
     to: accountingEmail,
     cc: opts.managerEmail,
     subject: `Approved Expense Report ${opts.reportNumber} — ${opts.employeeName} — ${opts.period}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: #1E3A5F; padding: 16px 24px; border-radius: 4px 4px 0 0;">
-          <h2 style="color: white; margin: 0; font-size: 18px;">RiverWest Partners</h2>
+          <h2 style="color: white; margin: 0; font-size: 18px;">RiverWest Properties</h2>
           <p style="color: #b3c9e1; margin: 4px 0 0; font-size: 13px;">Mileage Reimbursement Report</p>
         </div>
         <div style="border: 1px solid #d9e4f0; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
@@ -58,7 +58,7 @@ export async function sendReportToAccounting(opts: SendReportEmailOptions) {
             </tr>
           </table>
           <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">
-            This report was approved via the RiverWest Travel Reporting system.
+            This report was approved via the RiverWest Properties Travel Reporting system.
           </p>
         </div>
       </div>
@@ -86,13 +86,13 @@ export async function notifyManagerOfSubmission(opts: NotifyManagerOptions) {
   const transport = createTransport()
 
   await transport.sendMail({
-    from: process.env.SMTP_FROM ?? `"RiverWest Travel" <${process.env.SMTP_USER}>`,
+    from: process.env.SMTP_FROM ?? `"RiverWest Properties" <${process.env.SMTP_USER}>`,
     to: opts.managerEmail,
     subject: `Action Required: Expense Report ${opts.reportNumber} submitted by ${opts.employeeName}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: #1E3A5F; padding: 16px 24px; border-radius: 4px 4px 0 0;">
-          <h2 style="color: white; margin: 0; font-size: 18px;">RiverWest Partners</h2>
+          <h2 style="color: white; margin: 0; font-size: 18px;">RiverWest Properties</h2>
           <p style="color: #b3c9e1; margin: 4px 0 0; font-size: 13px;">Expense Report — Approval Required</p>
         </div>
         <div style="border: 1px solid #d9e4f0; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">
@@ -114,7 +114,7 @@ export async function notifyManagerOfSubmission(opts: NotifyManagerOptions) {
             Review &amp; Approve
           </a>
           <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">
-            RiverWest Travel Reporting System
+            RiverWest Properties Travel Reporting System
           </p>
         </div>
       </div>
@@ -139,13 +139,13 @@ export async function notifyEmployeeOfDecision(opts: NotifyEmployeeOptions) {
   const statusColor = opts.approved ? '#16a34a' : '#dc2626'
 
   await transport.sendMail({
-    from: process.env.SMTP_FROM ?? `"RiverWest Travel" <${process.env.SMTP_USER}>`,
+    from: process.env.SMTP_FROM ?? `"RiverWest Properties" <${process.env.SMTP_USER}>`,
     to: opts.employeeEmail,
     subject: `Expense Report ${opts.reportNumber} ${opts.approved ? 'Approved' : 'Rejected'}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: #1E3A5F; padding: 16px 24px; border-radius: 4px 4px 0 0;">
-          <h2 style="color: white; margin: 0; font-size: 18px;">RiverWest Partners</h2>
+          <h2 style="color: white; margin: 0; font-size: 18px;">RiverWest Properties</h2>
           <p style="color: #b3c9e1; margin: 4px 0 0; font-size: 13px;">Expense Report Status Update</p>
         </div>
         <div style="border: 1px solid #d9e4f0; border-top: none; padding: 24px; border-radius: 0 0 4px 4px;">

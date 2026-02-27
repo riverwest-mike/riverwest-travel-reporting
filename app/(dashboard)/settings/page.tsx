@@ -98,17 +98,17 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <MapPin className="h-4 w-4" /> Home Address
+            <MapPin className="h-4 w-4" /> Primary Office Location
           </CardTitle>
           <CardDescription>
-            Required for calculating mileage from home. Enter your full street address including city and state.
+            Used as the &ldquo;Primary Office&rdquo; origin when adding trips. Defaults to the Columbus corporate office — update if you work from a different location.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Home Address</Label>
+            <Label>Primary Office Address</Label>
             <Input
-              placeholder="123 Main St, Milwaukee, WI 53202"
+              placeholder="4215 Worth Ave, Columbus, OH 43219"
               value={homeAddress}
               onChange={(e) => setHomeAddress(e.target.value)}
             />

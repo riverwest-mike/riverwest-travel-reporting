@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { ReportStatus, Role } from '@prisma/client'
-import { generateExpenseReportExcel } from '@/lib/excel'
+import { generateAccountingExcel, AccountingTripRow } from '@/lib/excel'
 import { sendReportToAccounting, notifyEmployeeOfDecision } from '@/lib/email'
-import { formatPeriod, formatCurrency } from '@/lib/utils'
+import { formatPeriod } from '@/lib/utils'
 import { tripLocationLabel } from '@/lib/reports'
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -54,49 +54,41 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       },
     })
 
-    // Generate Excel and send email (fire-and-forget)
+    // Re-fetch trips after status update to get final approved set
+    const approvedTrips = await db.trip.findMany({
+      where: { reportId: params.id, tripStatus: 'APPROVED' },
+      include: { originProperty: true, destinationProperty: true },
+      orderBy: { date: 'asc' },
+    })
+
+    // Generate accounting Excel and send (fire-and-forget)
     ;(async () => {
       try {
         const period = formatPeriod(report.periodMonth, report.periodYear)
+        const dateApproved = new Date()
+        const mileageRate = report.mileageRate
 
-        const tripRows = report.trips.map((t) => {
-          const oneWay = t.distance
-          const total = t.roundTrip ? oneWay * 2 : oneWay
+        const tripRows: AccountingTripRow[] = approvedTrips.map((t) => {
+          const miles = t.roundTrip ? t.distance * 2 : t.distance
           return {
-            date: t.date,
-            originLabel: tripLocationLabel(
-              t.originType,
-              t.originProperty?.name,
-              t.originAddress,
-              t.originType === 'HOME'
-            ),
-            destinationLabel: tripLocationLabel(
-              t.destinationType,
-              t.destinationProperty?.name,
-              t.destinationAddress,
-              false
-            ),
-            distance: oneWay,
-            roundTrip: t.roundTrip,
-            totalDistance: total,
-            purpose: t.purpose,
+            employeeName: report.employee.name,
+            dateApproved,
+            departureLocation: tripLocationLabel(t.originType, t.originProperty?.name, t.originAddress, t.originType === 'HOME'),
+            destinationLocation: tripLocationLabel(t.destinationType, t.destinationProperty?.name, t.destinationAddress, false),
+            businessPurpose: t.purpose ?? '',
+            approvedMileage: miles,
+            reimbursementTotal: Math.round(miles * mileageRate * 100) / 100,
+            managerName: manager.name,
+            reportName: report.reportNumber,
           }
         })
 
-        const excelBuffer = await generateExpenseReportExcel({
-          reportNumber: report.reportNumber,
-          employeeName: report.employee.name,
-          periodMonth: report.periodMonth,
-          periodYear: report.periodYear,
-          mileageRate: report.mileageRate,
-          totalMiles: report.totalMiles,
-          totalAmount: report.totalAmount,
-          trips: tripRows,
-          parentReportNumber: report.parentReport?.reportNumber,
-        })
+        const totalMiles = tripRows.reduce((s, t) => s + t.approvedMileage, 0)
+        const totalAmount = Math.round(totalMiles * mileageRate * 100) / 100
 
-        const mm = String(report.periodMonth).padStart(2, '0')
-        const fileName = `${report.reportNumber}_${report.employee.name.replace(/\s+/g, '_')}.xlsx`
+        const excelBuffer = await generateAccountingExcel(tripRows)
+        const fileName = `Accounting_${report.reportNumber}_${report.employee.name.replace(/\s+/g, '_')}.xlsx`
+        const accountingEmail = process.env.ACCOUNTING_EMAIL ?? 'controller@riverwestpartners.com'
 
         await sendReportToAccounting({
           employeeName: report.employee.name,
@@ -108,6 +100,21 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
           fileName,
         })
 
+        // Log the export in the admin accounting log
+        await db.accountingExportLog.create({
+          data: {
+            fileName,
+            sentToEmail: accountingEmail,
+            tripCount: tripRows.length,
+            totalMiles,
+            totalAmount,
+            employeeName: report.employee.name,
+            managerName: manager.name,
+            reportNumber: report.reportNumber,
+            expenseReportId: report.id,
+          },
+        })
+
         await notifyEmployeeOfDecision({
           employeeEmail: report.employee.email,
           employeeName: report.employee.name,
@@ -117,7 +124,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
           reportUrl: `${process.env.NEXT_PUBLIC_APP_URL}/reports/${report.id}`,
         })
       } catch (err) {
-        console.error('Post-approval email error:', err)
+        console.error('Post-approval email/log error:', err)
       }
     })()
 

@@ -39,6 +39,7 @@ export async function getEmployee() {
         name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || email,
         email,
         role: Role.EMPLOYEE,
+        homeAddress: '4215 Worth Ave, Columbus, OH 43219',
       },
       include: { manager: true },
     })

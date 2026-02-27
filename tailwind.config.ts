@@ -18,6 +18,9 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        playfair: ['var(--font-playfair)', 'Georgia', 'serif'],
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

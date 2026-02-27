@@ -39,22 +39,11 @@ export default async function ReportPage({ params }: { params: { id: string } })
     redirect('/reports')
   }
 
-  // Fetch rejected trips from parent report so employee knows what to fix on resubmission
-  let rejectedParentTrips: Awaited<ReturnType<typeof db.trip.findMany>> = []
-  if (report.parentReportId) {
-    rejectedParentTrips = await db.trip.findMany({
-      where: { reportId: report.parentReportId, tripStatus: 'REJECTED' },
-      include: tripInclude,
-      orderBy: { date: 'asc' },
-    })
-  }
-
   return (
     <ReportDetail
       report={report as never}
       currentEmployee={{ id: employee.id, role: employee.role, homeAddress: employee.homeAddress }}
       isOwner={isOwner}
-      rejectedParentTrips={rejectedParentTrips as never}
     />
   )
 }

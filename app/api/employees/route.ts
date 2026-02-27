@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         email,
         role: (role as Role) ?? Role.EMPLOYEE,
         managerId: managerId ?? null,
-        homeAddress: homeAddress ?? null,
+        homeAddress: homeAddress ?? '4215 Worth Ave, Columbus, OH 43219',
       },
     })
 
