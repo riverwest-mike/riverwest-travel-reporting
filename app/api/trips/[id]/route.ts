@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { ReportStatus } from '@prisma/client'
 import { recalcReportTotals } from '@/lib/reports'
 import { calculateDistance } from '@/lib/mileage'
+import { DEFAULT_OFFICE_ADDRESS } from '@/lib/constants'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -43,8 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
       let resolvedOrigin: string
       if (effectiveOriginType === 'HOME') {
-        if (!employee.homeAddress) throw new Error('Home address not set')
-        resolvedOrigin = employee.homeAddress
+        resolvedOrigin = employee.homeAddress ?? DEFAULT_OFFICE_ADDRESS
       } else if (effectiveOriginType === 'PROPERTY') {
         const propId = originPropertyId ?? trip.originPropertyId
         const prop = await db.property.findUnique({ where: { id: propId } })
