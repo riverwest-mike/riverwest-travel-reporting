@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
     if (!reportId || !date || !originType || !destinationType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+    if (!purpose?.trim()) {
+      return NextResponse.json({ error: 'Purpose / Notes is required for each trip' }, { status: 400 })
+    }
 
     const report = await db.expenseReport.findUnique({ where: { id: reportId } })
     if (!report) return NextResponse.json({ error: 'Report not found' }, { status: 404 })

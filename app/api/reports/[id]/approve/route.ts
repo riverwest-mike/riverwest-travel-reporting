@@ -39,6 +39,12 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       }
     }
 
+    // Mark all pending/approved trips as APPROVED
+    await db.trip.updateMany({
+      where: { reportId: params.id, tripStatus: { not: 'REJECTED' } },
+      data: { tripStatus: 'APPROVED', tripApprovedById: manager.id },
+    })
+
     const updated = await db.expenseReport.update({
       where: { id: params.id },
       data: {

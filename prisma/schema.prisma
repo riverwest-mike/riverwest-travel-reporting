@@ -37,6 +37,8 @@ model Employee {
   expenseReports  ExpenseReport[] @relation("EmployeeReports")
   approvedReports ExpenseReport[] @relation("ApproverReports")
   rejectedReports ExpenseReport[] @relation("RejectorReports")
+  approvedTrips   Trip[]          @relation("TripApprover")
+  rejectedTrips   Trip[]          @relation("TripRejector")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,10 +106,16 @@ model Trip {
   roundTrip             Boolean  @default(false)
   distance              Float    @default(0)
   purpose               String?
+  tripStatus            String   @default("PENDING")
+  tripRejectionReason   String?
+  tripApprovedById      String?
+  tripRejectedById      String?
 
   report              ExpenseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   originProperty      Property?     @relation("OriginProperty", fields: [originPropertyId], references: [id])
   destinationProperty Property?     @relation("DestinationProperty", fields: [destinationPropertyId], references: [id])
+  tripApprovedBy      Employee?     @relation("TripApprover", fields: [tripApprovedById], references: [id])
+  tripRejectedBy      Employee?     @relation("TripRejector", fields: [tripRejectedById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

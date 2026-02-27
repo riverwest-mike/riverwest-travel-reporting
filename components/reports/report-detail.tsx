@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { StatusBadge } from '@/components/reports/status-badge'
@@ -11,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, PlusCircle, Trash2, Send, CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle
@@ -27,6 +26,14 @@ interface Trip {
   originProperty: Property | null; originAddress: string | null
   destinationType: string; destinationProperty: Property | null; destinationAddress: string | null
   roundTrip: boolean; distance: number; purpose: string | null
+  tripStatus: string; tripRejectionReason: string | null
+}
+interface RejectedParentTrip {
+  id: string; date: string | Date; originType: string
+  originProperty: Property | null; originAddress: string | null
+  destinationType: string; destinationProperty: Property | null; destinationAddress: string | null
+  roundTrip: boolean; distance: number; purpose: string | null
+  tripRejectionReason: string | null
 }
 interface ReportData {
   id: string; reportNumber: string; status: ReportStatus; periodMonth: number; periodYear: number
@@ -44,6 +51,7 @@ interface Props {
   report: ReportData
   currentEmployee: { id: string; role: Role; homeAddress: string | null }
   isOwner: boolean
+  rejectedParentTrips?: RejectedParentTrip[]
 }
 
 function tripLabel(type: string, property: Property | null, address: string | null) {
@@ -52,7 +60,17 @@ function tripLabel(type: string, property: Property | null, address: string | nu
   return address ?? 'Unknown'
 }
 
-export function ReportDetail({ report: initialReport, currentEmployee, isOwner }: Props) {
+function TripStatusBadge({ status }: { status: string }) {
+  if (status === 'APPROVED') {
+    return <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Approved</Badge>
+  }
+  if (status === 'REJECTED') {
+    return <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">Rejected</Badge>
+  }
+  return null
+}
+
+export function ReportDetail({ report: initialReport, currentEmployee, isOwner, rejectedParentTrips = [] }: Props) {
   const router = useRouter()
   const [report, setReport] = useState(initialReport)
   const [showTripForm, setShowTripForm] = useState(false)
@@ -72,7 +90,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
     if (res.ok) setReport(await res.json())
   }
 
-  async function handleTripAdded(trip: unknown) {
+  async function handleTripAdded() {
     setShowTripForm(false)
     await refreshReport()
   }
@@ -131,6 +149,8 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
       setActionLoading(false)
     }
   }
+
+  const showTripStatuses = report.status !== ReportStatus.DRAFT
 
   return (
     <div className="space-y-6">
@@ -194,16 +214,18 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
       )}
 
       {/* Rejection notice */}
-      {report.status === ReportStatus.REJECTED && report.rejectionReason && (
+      {report.status === ReportStatus.REJECTED && (
         <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4">
           <div className="flex items-center gap-2 text-destructive font-medium mb-1">
             <XCircle className="h-4 w-4" />
-            Rejected by {report.rejectedBy?.name ?? 'Manager'}
+            Sent back by {report.rejectedBy?.name ?? 'Manager'}
           </div>
-          <p className="text-sm text-muted-foreground">{report.rejectionReason}</p>
+          {report.rejectionReason && (
+            <p className="text-sm text-muted-foreground whitespace-pre-line">{report.rejectionReason}</p>
+          )}
           {isOwner && (
             <p className="text-sm mt-2 text-navy-600 font-medium">
-              Click "Resubmit" above to create a corrected report pre-populated with your trips.
+              Click &ldquo;Resubmit&rdquo; above to create a corrected draft. Any rejected trips below will not be carried over.
             </p>
           )}
         </div>
@@ -223,6 +245,50 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
             The Excel report has been emailed to accounting.
           </p>
         </div>
+      )}
+
+      {/* Rejected parent trips reference */}
+      {rejectedParentTrips.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-amber-700 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Trips rejected from {report.parentReport?.reportNumber} — please re-add corrected versions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Date</TableHead>
+                  <TableHead className="text-xs">From</TableHead>
+                  <TableHead className="text-xs">To</TableHead>
+                  <TableHead className="text-xs">Miles</TableHead>
+                  <TableHead className="text-xs">Purpose</TableHead>
+                  <TableHead className="text-xs">Rejection Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rejectedParentTrips.map((trip) => (
+                  <TableRow key={trip.id} className="bg-amber-50/30">
+                    <TableCell className="text-xs">{formatDate(trip.date)}</TableCell>
+                    <TableCell className="text-xs">
+                      {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {tripLabel(trip.destinationType, trip.destinationProperty, trip.destinationAddress)}
+                    </TableCell>
+                    <TableCell className="text-xs tabular-nums">
+                      {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{trip.purpose ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-destructive">{trip.tripRejectionReason}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Summary cards */}
@@ -298,45 +364,63 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                   <TableHead>R/T</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Purpose</TableHead>
+                  {showTripStatuses && <TableHead>Status</TableHead>}
                   {canEdit && <TableHead className="w-12" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {report.trips.map((trip) => (
-                  <TableRow key={trip.id}>
-                    <TableCell className="text-sm">{formatDate(trip.date)}</TableCell>
-                    <TableCell className="text-sm">
-                      {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {tripLabel(trip.destinationType, trip.destinationProperty, trip.destinationAddress)}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">{trip.distance.toFixed(1)}</TableCell>
-                    <TableCell className="text-sm">
-                      {trip.roundTrip ? <Badge variant="secondary" className="text-xs">R/T</Badge> : '—'}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums font-medium">
-                      {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
-                      {trip.purpose ?? '—'}
-                    </TableCell>
-                    {canEdit && (
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => setConfirmDelete(trip.id)}
-                          disabled={deletingTripId === trip.id}
-                        >
-                          {deletingTripId === trip.id
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Trash2 className="h-3.5 w-3.5" />}
-                        </Button>
+                  <Fragment key={trip.id}>
+                    <TableRow
+                      className={trip.tripStatus === 'REJECTED' ? 'bg-red-50/50' : undefined}
+                    >
+                      <TableCell className="text-sm">{formatDate(trip.date)}</TableCell>
+                      <TableCell className="text-sm">
+                        {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {tripLabel(trip.destinationType, trip.destinationProperty, trip.destinationAddress)}
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums">{trip.distance.toFixed(1)}</TableCell>
+                      <TableCell className="text-sm">
+                        {trip.roundTrip ? <Badge variant="secondary" className="text-xs">R/T</Badge> : '—'}
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums font-medium">
+                        {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
+                        {trip.purpose ?? '—'}
+                      </TableCell>
+                      {showTripStatuses && (
+                        <TableCell><TripStatusBadge status={trip.tripStatus} /></TableCell>
+                      )}
+                      {canEdit && (
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => setConfirmDelete(trip.id)}
+                            disabled={deletingTripId === trip.id}
+                          >
+                            {deletingTripId === trip.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Trash2 className="h-3.5 w-3.5" />}
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                    {showTripStatuses && trip.tripStatus === 'REJECTED' && trip.tripRejectionReason && (
+                      <TableRow className="bg-red-50/50">
+                        <TableCell colSpan={canEdit ? 9 : 8} className="py-1 pb-2">
+                          <p className="text-xs text-destructive flex items-start gap-1.5 pl-1">
+                            <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            <span><strong>Rejection reason:</strong> {trip.tripRejectionReason}</span>
+                          </p>
+                        </TableCell>
+                      </TableRow>
                     )}
-                  </TableRow>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
