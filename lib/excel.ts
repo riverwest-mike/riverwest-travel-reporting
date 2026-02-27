@@ -57,7 +57,7 @@ export async function generateExpenseReportExcel(data: ReportData): Promise<Buff
   // Row 1: Company name
   sheet.mergeCells('A1:G1')
   const titleCell = sheet.getCell('A1')
-  titleCell.value = 'RiverWest Partners'
+  titleCell.value = 'RiverWest Properties'
   titleCell.font = { bold: true, size: 16, color: { argb: white } }
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } }
@@ -280,7 +280,7 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
   // Row 1: Company header
   sheet.mergeCells('A1:I1')
   const titleCell = sheet.getCell('A1')
-  titleCell.value = 'RiverWest Partners'
+  titleCell.value = 'RiverWest Properties'
   titleCell.font = { bold: true, size: 16, color: { argb: white } }
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } }

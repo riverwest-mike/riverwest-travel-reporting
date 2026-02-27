@@ -60,10 +60,28 @@ export function Sidebar({ role, employeeName, pendingCount }: SidebarProps) {
 
   return (
     <aside className="w-64 min-h-screen bg-navy-600 flex flex-col">
-      {/* Logo */}
-      <div className="px-6 py-5 border-b border-navy-500">
-        <h1 className="text-white font-bold text-lg leading-tight">RiverWest</h1>
-        <p className="text-navy-300 text-xs mt-0.5">Travel Reporting</p>
+      {/* Logo — matches RiverWest Properties brand identity */}
+      <div className="px-5 py-5 border-b border-navy-500">
+        <div className="flex items-center gap-3">
+          {/* RW monogram block */}
+          <div className="flex-shrink-0 w-10 h-10 border border-gold-500/70 flex items-center justify-center">
+            <span className="font-playfair text-gold-400 text-lg font-bold leading-none tracking-tight select-none">
+              RW
+            </span>
+          </div>
+          {/* Wordmark */}
+          <div>
+            <p className="text-white text-xs font-semibold tracking-[0.2em] uppercase leading-tight">
+              RiverWest
+            </p>
+            <p className="text-gold-400/80 text-[9px] tracking-[0.18em] uppercase leading-tight mt-0.5">
+              Properties
+            </p>
+            <p className="text-navy-300 text-[9px] tracking-widest uppercase leading-tight mt-1 border-t border-navy-500 pt-1">
+              Travel Reporting
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
