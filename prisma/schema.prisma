@@ -84,13 +84,31 @@ model ExpenseReport {
   parentReport ExpenseReport?  @relation("ReportResubmissions", fields: [parentReportId], references: [id])
   resubmissions ExpenseReport[] @relation("ReportResubmissions")
 
-  trips Trip[]
+  trips             Trip[]
+  accountingExports AccountingExportLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([employeeId, periodYear, periodMonth])
   @@index([status])
+}
+
+model AccountingExportLog {
+  id              String        @id @default(cuid())
+  sentAt          DateTime      @default(now())
+  fileName        String
+  sentToEmail     String
+  tripCount       Int
+  totalMiles      Float
+  totalAmount     Float
+  employeeName    String
+  managerName     String
+  reportNumber    String
+  expenseReportId String
+  expenseReport   ExpenseReport @relation(fields: [expenseReportId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model Trip {

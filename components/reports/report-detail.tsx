@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft, PlusCircle, Trash2, Send, CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle
+  ArrowLeft, PlusCircle, Trash2, Pencil, Send, CheckCircle2, XCircle, RefreshCw, Loader2, AlertTriangle
 } from 'lucide-react'
 import { formatCurrency, formatMiles, formatDate, formatPeriod } from '@/lib/utils'
 import { Role, ReportStatus } from '@prisma/client'
@@ -23,17 +23,10 @@ interface Property {
 }
 interface Trip {
   id: string; date: string | Date; originType: string
-  originProperty: Property | null; originAddress: string | null
-  destinationType: string; destinationProperty: Property | null; destinationAddress: string | null
+  originProperty: Property | null; originAddress: string | null; originPropertyId?: string | null
+  destinationType: string; destinationProperty: Property | null; destinationAddress: string | null; destinationPropertyId?: string | null
   roundTrip: boolean; distance: number; purpose: string | null
   tripStatus: string; tripRejectionReason: string | null
-}
-interface RejectedParentTrip {
-  id: string; date: string | Date; originType: string
-  originProperty: Property | null; originAddress: string | null
-  destinationType: string; destinationProperty: Property | null; destinationAddress: string | null
-  roundTrip: boolean; distance: number; purpose: string | null
-  tripRejectionReason: string | null
 }
 interface ReportData {
   id: string; reportNumber: string; status: ReportStatus; periodMonth: number; periodYear: number
@@ -51,11 +44,10 @@ interface Props {
   report: ReportData
   currentEmployee: { id: string; role: Role; homeAddress: string | null }
   isOwner: boolean
-  rejectedParentTrips?: RejectedParentTrip[]
 }
 
 function tripLabel(type: string, property: Property | null, address: string | null) {
-  if (type === 'HOME') return 'Home'
+  if (type === 'HOME') return 'Primary Office'
   if (type === 'PROPERTY' && property) return property.name
   return address ?? 'Unknown'
 }
@@ -70,10 +62,11 @@ function TripStatusBadge({ status }: { status: string }) {
   return null
 }
 
-export function ReportDetail({ report: initialReport, currentEmployee, isOwner, rejectedParentTrips = [] }: Props) {
+export function ReportDetail({ report: initialReport, currentEmployee, isOwner }: Props) {
   const router = useRouter()
   const [report, setReport] = useState(initialReport)
   const [showTripForm, setShowTripForm] = useState(false)
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null)
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -85,6 +78,11 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
   const canSubmit = isOwner && isDraft && report.trips.length > 0
   const canResubmit = isOwner && isRejected
 
+  // Trips carried over from a rejection that need the employee's attention
+  const needsAttentionTrips = isDraft
+    ? report.trips.filter((t) => t.tripStatus === 'PENDING' && t.tripRejectionReason)
+    : []
+
   async function refreshReport() {
     const res = await fetch(`/api/reports/${report.id}`)
     if (res.ok) setReport(await res.json())
@@ -92,6 +90,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
 
   async function handleTripAdded() {
     setShowTripForm(false)
+    setEditingTrip(null)
     await refreshReport()
   }
 
@@ -148,6 +147,11 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
       setError(e instanceof Error ? e.message : 'Error')
       setActionLoading(false)
     }
+  }
+
+  function startEditTrip(trip: Trip) {
+    setShowTripForm(false)
+    setEditingTrip(trip)
   }
 
   const showTripStatuses = report.status !== ReportStatus.DRAFT
@@ -213,6 +217,19 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
         </div>
       )}
 
+      {/* Previously-rejected trips warning (resubmission draft) */}
+      {needsAttentionTrips.length > 0 && (
+        <div className="border border-amber-300 bg-amber-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-amber-700 font-medium mb-1">
+            <AlertTriangle className="h-4 w-4" />
+            {needsAttentionTrips.length} trip{needsAttentionTrips.length > 1 ? 's' : ''} need{needsAttentionTrips.length === 1 ? 's' : ''} your attention
+          </div>
+          <p className="text-sm text-amber-700">
+            The highlighted trips below were rejected in the previous report. Review the rejection reasons, then edit or delete them before submitting.
+          </p>
+        </div>
+      )}
+
       {/* Rejection notice */}
       {report.status === ReportStatus.REJECTED && (
         <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4">
@@ -225,7 +242,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
           )}
           {isOwner && (
             <p className="text-sm mt-2 text-navy-600 font-medium">
-              Click &ldquo;Resubmit&rdquo; above to create a corrected draft. Any rejected trips below will not be carried over.
+              Click &ldquo;Resubmit&rdquo; above to create a corrected draft with all trips included for editing.
             </p>
           )}
         </div>
@@ -242,53 +259,9 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
             )}
           </div>
           <p className="text-sm text-green-600 mt-1">
-            The Excel report has been emailed to accounting.
+            The accounting report has been sent to the accounting team.
           </p>
         </div>
-      )}
-
-      {/* Rejected parent trips reference */}
-      {rejectedParentTrips.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-amber-700 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Trips rejected from {report.parentReport?.reportNumber} — please re-add corrected versions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Date</TableHead>
-                  <TableHead className="text-xs">From</TableHead>
-                  <TableHead className="text-xs">To</TableHead>
-                  <TableHead className="text-xs">Miles</TableHead>
-                  <TableHead className="text-xs">Purpose</TableHead>
-                  <TableHead className="text-xs">Rejection Reason</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rejectedParentTrips.map((trip) => (
-                  <TableRow key={trip.id} className="bg-amber-50/30">
-                    <TableCell className="text-xs">{formatDate(trip.date)}</TableCell>
-                    <TableCell className="text-xs">
-                      {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {tripLabel(trip.destinationType, trip.destinationProperty, trip.destinationAddress)}
-                    </TableCell>
-                    <TableCell className="text-xs tabular-nums">
-                      {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{trip.purpose ?? '—'}</TableCell>
-                    <TableCell className="text-xs text-destructive">{trip.tripRejectionReason}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       )}
 
       {/* Summary cards */}
@@ -320,7 +293,11 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
         <CardHeader className="flex flex-row items-center justify-between py-4">
           <CardTitle className="text-base">Trips</CardTitle>
           {canEdit && (
-            <Button size="sm" onClick={() => setShowTripForm(true)} disabled={showTripForm}>
+            <Button
+              size="sm"
+              onClick={() => { setEditingTrip(null); setShowTripForm(true) }}
+              disabled={showTripForm || Boolean(editingTrip)}
+            >
               <PlusCircle className="h-4 w-4" />
               Add Trip
             </Button>
@@ -365,63 +342,128 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner, 
                   <TableHead>Total</TableHead>
                   <TableHead>Purpose</TableHead>
                   {showTripStatuses && <TableHead>Status</TableHead>}
-                  {canEdit && <TableHead className="w-12" />}
+                  {canEdit && <TableHead className="w-20" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.trips.map((trip) => (
-                  <Fragment key={trip.id}>
-                    <TableRow
-                      className={trip.tripStatus === 'REJECTED' ? 'bg-red-50/50' : undefined}
-                    >
-                      <TableCell className="text-sm">{formatDate(trip.date)}</TableCell>
-                      <TableCell className="text-sm">
-                        {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {tripLabel(trip.destinationType, trip.destinationProperty, trip.destinationAddress)}
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums">{trip.distance.toFixed(1)}</TableCell>
-                      <TableCell className="text-sm">
-                        {trip.roundTrip ? <Badge variant="secondary" className="text-xs">R/T</Badge> : '—'}
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums font-medium">
-                        {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
-                        {trip.purpose ?? '—'}
-                      </TableCell>
-                      {showTripStatuses && (
-                        <TableCell><TripStatusBadge status={trip.tripStatus} /></TableCell>
-                      )}
-                      {canEdit && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => setConfirmDelete(trip.id)}
-                            disabled={deletingTripId === trip.id}
-                          >
-                            {deletingTripId === trip.id
-                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              : <Trash2 className="h-3.5 w-3.5" />}
-                          </Button>
+                {report.trips.map((trip) => {
+                  const needsAttention = isDraft && trip.tripStatus === 'PENDING' && Boolean(trip.tripRejectionReason)
+                  const isEditingThis = editingTrip?.id === trip.id
+                  return (
+                    <Fragment key={trip.id}>
+                      <TableRow
+                        className={
+                          trip.tripStatus === 'REJECTED'
+                            ? 'bg-red-50/50'
+                            : needsAttention
+                            ? 'bg-amber-50/60'
+                            : undefined
+                        }
+                      >
+                        <TableCell className="text-sm">{formatDate(trip.date)}</TableCell>
+                        <TableCell className="text-sm">
+                          {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
                         </TableCell>
-                      )}
-                    </TableRow>
-                    {showTripStatuses && trip.tripStatus === 'REJECTED' && trip.tripRejectionReason && (
-                      <TableRow className="bg-red-50/50">
-                        <TableCell colSpan={canEdit ? 9 : 8} className="py-1 pb-2">
-                          <p className="text-xs text-destructive flex items-start gap-1.5 pl-1">
-                            <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            <span><strong>Rejection reason:</strong> {trip.tripRejectionReason}</span>
-                          </p>
+                        <TableCell className="text-sm">
+                          {tripLabel(trip.destinationType, trip.destinationProperty, trip.destinationAddress)}
                         </TableCell>
+                        <TableCell className="text-sm tabular-nums">{trip.distance.toFixed(1)}</TableCell>
+                        <TableCell className="text-sm">
+                          {trip.roundTrip ? <Badge variant="secondary" className="text-xs">R/T</Badge> : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm tabular-nums font-medium">
+                          {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
+                          {trip.purpose ?? '—'}
+                        </TableCell>
+                        {showTripStatuses && (
+                          <TableCell><TripStatusBadge status={trip.tripStatus} /></TableCell>
+                        )}
+                        {canEdit && (
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-navy-600"
+                                onClick={() => startEditTrip(trip)}
+                                disabled={Boolean(editingTrip) || showTripForm}
+                                title="Edit trip"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setConfirmDelete(trip.id)}
+                                disabled={deletingTripId === trip.id}
+                              >
+                                {deletingTripId === trip.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Trash2 className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
-                    )}
-                  </Fragment>
-                ))}
+
+                      {/* Rejection reason row (non-draft reports) */}
+                      {showTripStatuses && trip.tripStatus === 'REJECTED' && trip.tripRejectionReason && (
+                        <TableRow className="bg-red-50/50">
+                          <TableCell colSpan={canEdit ? 9 : 8} className="py-1 pb-2">
+                            <p className="text-xs text-destructive flex items-start gap-1.5 pl-1">
+                              <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                              <span><strong>Rejection reason:</strong> {trip.tripRejectionReason}</span>
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+
+                      {/* Warning row for previously-rejected trips in draft */}
+                      {needsAttention && (
+                        <TableRow className="bg-amber-50/60">
+                          <TableCell colSpan={canEdit ? 9 : 8} className="py-1 pb-2">
+                            <p className="text-xs text-amber-700 flex items-start gap-1.5 pl-1">
+                              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                              <span><strong>Previously rejected:</strong> {trip.tripRejectionReason} — edit or delete this trip before submitting.</span>
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+
+                      {/* Inline edit form */}
+                      {isEditingThis && (
+                        <TableRow>
+                          <TableCell colSpan={canEdit ? 9 : 8} className="p-0">
+                            <div className="p-6 border-t border-b bg-navy-50/30">
+                              <h3 className="font-medium mb-4 text-navy-600">Edit Trip</h3>
+                              <TripForm
+                                reportId={report.id}
+                                onSuccess={handleTripAdded}
+                                onCancel={() => setEditingTrip(null)}
+                                hasHomeAddress={Boolean(currentEmployee.homeAddress)}
+                                editValues={{
+                                  tripId: trip.id,
+                                  date: new Date(trip.date).toISOString().split('T')[0],
+                                  originType: trip.originType,
+                                  originPropertyId: trip.originPropertyId ?? '',
+                                  originAddress: trip.originAddress ?? '',
+                                  destinationType: trip.destinationType,
+                                  destinationPropertyId: trip.destinationPropertyId ?? '',
+                                  destinationAddress: trip.destinationAddress ?? '',
+                                  roundTrip: trip.roundTrip,
+                                  purpose: trip.purpose ?? '',
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

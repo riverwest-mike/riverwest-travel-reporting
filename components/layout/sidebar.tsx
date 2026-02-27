@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UserButton } from '@clerk/nextjs'
+import { UserButton, SignOutButton } from '@clerk/nextjs'
 import {
   FileText,
   PlusCircle,
@@ -12,7 +12,8 @@ import {
   Users,
   Building2,
   ClipboardList,
-  ChevronRight,
+  LogOut,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Role } from '@prisma/client'
@@ -44,9 +45,11 @@ export function Sidebar({ role, employeeName, pendingCount }: SidebarProps) {
 
   const adminNav: NavItem[] = [
     { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
+    { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/reports', label: 'All Reports', icon: ClipboardList },
     { href: '/admin/employees', label: 'Employees', icon: Users },
     { href: '/admin/properties', label: 'Properties', icon: Building2 },
+    { href: '/admin/accounting', label: 'Sent to Accounting', icon: FileText },
   ]
 
   const isActive = (href: string) => {
@@ -77,17 +80,23 @@ export function Sidebar({ role, employeeName, pendingCount }: SidebarProps) {
       </nav>
 
       {/* Bottom: settings + user */}
-      <div className="px-3 pb-4 space-y-1">
+      <div className="px-3 pb-4 space-y-1 border-t border-navy-500 pt-3">
         <NavItem
           href="/settings"
           label="Profile & Settings"
           icon={Settings}
           active={isActive('/settings')}
         />
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-md">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-md">
           <UserButton afterSignOutUrl="/sign-in" />
-          <span className="text-navy-200 text-sm truncate">{employeeName}</span>
+          <span className="text-navy-200 text-sm truncate flex-1">{employeeName}</span>
         </div>
+        <SignOutButton redirectUrl="/sign-in">
+          <button className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-navy-300 hover:bg-white/10 hover:text-white w-full transition-colors">
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Sign Out</span>
+          </button>
+        </SignOutButton>
       </div>
     </aside>
   )

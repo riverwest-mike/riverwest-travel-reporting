@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Users, Building2, ClipboardList, CheckSquare } from 'lucide-react'
+import { Users, Building2, ClipboardList, CheckSquare, BarChart3, FileSpreadsheet } from 'lucide-react'
 
 export default async function AdminDashboardPage() {
   const employee = await requireEmployee()
@@ -69,6 +69,8 @@ export default async function AdminDashboardPage() {
         <QuickLink href="/admin/employees" icon={Users} label="Manage Employees" description="Add, edit, or deactivate team members" />
         <QuickLink href="/admin/properties" icon={Building2} label="Manage Properties" description="Update property addresses for mileage calculation" />
         <QuickLink href="/admin/reports" icon={ClipboardList} label="All Reports" description="View all expense reports across the team" />
+        <QuickLink href="/admin/analytics" icon={BarChart3} label="Analytics" description="Miles by employee, top destinations, monthly trends" />
+        <QuickLink href="/admin/accounting" icon={FileSpreadsheet} label="Sent to Accounting" description="Log of all accounting reports emailed to the controller" />
       </div>
     </div>
   )

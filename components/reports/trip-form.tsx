@@ -15,27 +15,42 @@ interface Property {
   state: string | null
 }
 
+interface TripInitialValues {
+  tripId: string
+  date: string
+  originType: string
+  originPropertyId: string
+  originAddress: string
+  destinationType: string
+  destinationPropertyId: string
+  destinationAddress: string
+  roundTrip: boolean
+  purpose: string
+}
+
 interface TripFormProps {
   reportId: string
   onSuccess: (trip: unknown) => void
   onCancel: () => void
   hasHomeAddress: boolean
+  editValues?: TripInitialValues
 }
 
-export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress }: TripFormProps) {
+export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editValues }: TripFormProps) {
+  const isEdit = Boolean(editValues)
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [originType, setOriginType] = useState('HOME')
-  const [originPropertyId, setOriginPropertyId] = useState('')
-  const [originAddress, setOriginAddress] = useState('')
-  const [destType, setDestType] = useState('PROPERTY')
-  const [destPropertyId, setDestPropertyId] = useState('')
-  const [destAddress, setDestAddress] = useState('')
-  const [roundTrip, setRoundTrip] = useState(false)
-  const [purpose, setPurpose] = useState('')
+  const [date, setDate] = useState(() => editValues?.date ?? new Date().toISOString().split('T')[0])
+  const [originType, setOriginType] = useState(editValues?.originType ?? 'HOME')
+  const [originPropertyId, setOriginPropertyId] = useState(editValues?.originPropertyId ?? '')
+  const [originAddress, setOriginAddress] = useState(editValues?.originAddress ?? '')
+  const [destType, setDestType] = useState(editValues?.destinationType ?? 'PROPERTY')
+  const [destPropertyId, setDestPropertyId] = useState(editValues?.destinationPropertyId ?? '')
+  const [destAddress, setDestAddress] = useState(editValues?.destinationAddress ?? '')
+  const [roundTrip, setRoundTrip] = useState(editValues?.roundTrip ?? false)
+  const [purpose, setPurpose] = useState(editValues?.purpose ?? '')
 
   useEffect(() => {
     fetch('/api/properties')
@@ -50,25 +65,30 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress }: Trip
     setError('')
 
     try {
-      const res = await fetch('/api/trips', {
-        method: 'POST',
+      const payload = {
+        reportId,
+        date,
+        originType,
+        originPropertyId: originType === 'PROPERTY' ? originPropertyId : undefined,
+        originAddress: originType === 'OTHER' ? originAddress : undefined,
+        destinationType: destType,
+        destinationPropertyId: destType === 'PROPERTY' ? destPropertyId : undefined,
+        destinationAddress: destType === 'OTHER' ? destAddress : undefined,
+        roundTrip,
+        purpose,
+      }
+
+      const url = isEdit ? `/api/trips/${editValues!.tripId}` : '/api/trips'
+      const method = isEdit ? 'PATCH' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reportId,
-          date,
-          originType,
-          originPropertyId: originType === 'PROPERTY' ? originPropertyId : undefined,
-          originAddress: originType === 'OTHER' ? originAddress : undefined,
-          destinationType: destType,
-          destinationPropertyId: destType === 'PROPERTY' ? destPropertyId : undefined,
-          destinationAddress: destType === 'OTHER' ? destAddress : undefined,
-          roundTrip,
-          purpose,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to add trip')
+      if (!res.ok) throw new Error(data.error ?? (isEdit ? 'Failed to update trip' : 'Failed to add trip'))
       onSuccess(data)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
@@ -150,7 +170,9 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress }: Trip
           Cancel
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Calculating...</> : 'Add Trip'}
+          {loading
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> {isEdit ? 'Saving...' : 'Calculating...'}</>
+            : isEdit ? 'Save Changes' : 'Add Trip'}
         </Button>
       </div>
     </form>
@@ -280,7 +302,7 @@ function LocationPicker({
         <SelectContent>
           {includeHome && (
             <SelectItem value="HOME" disabled={homeDisabled}>
-              {homeDisabled ? 'Home (set address in Settings)' : 'Home'}
+              {homeDisabled ? 'Primary Office (set address in Settings)' : 'Primary Office'}
             </SelectItem>
           )}
           <SelectItem value="PROPERTY">Property</SelectItem>

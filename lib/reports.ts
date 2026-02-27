@@ -31,7 +31,7 @@ export function tripLocationLabel(
   customAddress: string | null | undefined,
   isHome: boolean
 ): string {
-  if (isHome || type === 'HOME') return 'Home'
+  if (isHome || type === 'HOME') return 'Primary Office'
   if (type === 'PROPERTY' && propertyName) return propertyName
   return customAddress ?? 'Unknown'
 }
