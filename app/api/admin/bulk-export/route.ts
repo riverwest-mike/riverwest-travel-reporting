@@ -4,6 +4,12 @@ import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
 import { generateAccountingExcel } from '@/lib/excel'
 
+function tripLabel(type: string, property: { name: string } | null, address: string | null) {
+  if (type === 'HOME') return 'Primary Office'
+  if (type === 'PROPERTY' && property) return property.name
+  return address ?? 'Unknown'
+}
+
 export async function GET(request: NextRequest) {
   try {
     const employee = await requireEmployee()
@@ -28,9 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     const trips = await db.trip.findMany({
-      where: {
-        report: reportWhere,
-      },
+      where: { report: reportWhere },
       include: {
         report: {
           include: {
@@ -54,12 +58,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    function tripLabel(type: string, property: { name: string } | null, address: string | null) {
-      if (type === 'HOME') return 'Primary Office'
-      if (type === 'PROPERTY' && property) return property.name
-      return address ?? 'Unknown'
-    }
-
     const rows = trips.map(t => ({
       employeeName: t.report.employee.name,
       dateApproved: t.report.approvedAt ?? t.report.updatedAt,
@@ -78,7 +76,7 @@ export async function GET(request: NextRequest) {
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const filename = `RiverWest-BulkExport-${dateStr}.xlsx`
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
