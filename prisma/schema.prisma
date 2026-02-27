@@ -37,8 +37,10 @@ model Employee {
   expenseReports  ExpenseReport[] @relation("EmployeeReports")
   approvedReports ExpenseReport[] @relation("ApproverReports")
   rejectedReports ExpenseReport[] @relation("RejectorReports")
+  deletedReports  ExpenseReport[] @relation("DeleterReports")
   approvedTrips   Trip[]          @relation("TripApprover")
   rejectedTrips   Trip[]          @relation("TripRejector")
+  favoriteTrips   FavoriteTrip[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -52,11 +54,35 @@ model Property {
   state    String?
   isActive Boolean @default(true)
 
-  originTrips      Trip[] @relation("OriginProperty")
-  destinationTrips Trip[] @relation("DestinationProperty")
+  originTrips           Trip[]         @relation("OriginProperty")
+  destinationTrips      Trip[]         @relation("DestinationProperty")
+  favoriteOrigins       FavoriteTrip[] @relation("FavOriginProperty")
+  favoriteDestinations  FavoriteTrip[] @relation("FavDestinationProperty")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model FavoriteTrip {
+  id                    String  @id @default(cuid())
+  employeeId            String
+  name                  String
+  originType            String
+  originPropertyId      String?
+  originAddress         String?
+  destinationType       String
+  destinationPropertyId String?
+  destinationAddress    String?
+  roundTrip             Boolean @default(false)
+
+  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  originProperty      Property? @relation("FavOriginProperty", fields: [originPropertyId], references: [id])
+  destinationProperty Property? @relation("FavDestinationProperty", fields: [destinationPropertyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
 }
 
 model ExpenseReport {
@@ -76,12 +102,16 @@ model ExpenseReport {
   rejectionReason String?
   approvedById  String?
   rejectedById  String?
-  parentReportId String?
+  parentReportId  String?
+  deletedAt       DateTime?
+  deletedById     String?
+  deletionReason  String?
 
-  employee     Employee  @relation("EmployeeReports", fields: [employeeId], references: [id])
-  approvedBy   Employee? @relation("ApproverReports", fields: [approvedById], references: [id])
-  rejectedBy   Employee? @relation("RejectorReports", fields: [rejectedById], references: [id])
-  parentReport ExpenseReport?  @relation("ReportResubmissions", fields: [parentReportId], references: [id])
+  employee      Employee  @relation("EmployeeReports", fields: [employeeId], references: [id])
+  approvedBy    Employee? @relation("ApproverReports", fields: [approvedById], references: [id])
+  rejectedBy    Employee? @relation("RejectorReports", fields: [rejectedById], references: [id])
+  deletedBy     Employee? @relation("DeleterReports", fields: [deletedById], references: [id])
+  parentReport  ExpenseReport?  @relation("ReportResubmissions", fields: [parentReportId], references: [id])
   resubmissions ExpenseReport[] @relation("ReportResubmissions")
 
   trips             Trip[]

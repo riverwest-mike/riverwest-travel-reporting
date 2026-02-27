@@ -12,7 +12,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft, CheckCircle2, XCircle, Loader2, AlertTriangle, Check, X, User
+  ArrowLeft, CheckCircle2, XCircle, Loader2, AlertTriangle, Check, X, User, Copy
 } from 'lucide-react'
 import { formatCurrency, formatMiles, formatDate, formatPeriod } from '@/lib/utils'
 import { ReportStatus } from '@prisma/client'
@@ -72,6 +72,28 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
   const isPending = report.status === ReportStatus.SUBMITTED
   const rejectedTrips = report.trips.filter((t) => t.tripStatus === 'REJECTED')
   const hasRejectedTrips = rejectedTrips.length > 0
+
+  // Detect duplicate trips (same date + same origin key + same destination key)
+  const duplicateTripIds = new Set<string>()
+  report.trips.forEach((a, i) => {
+    report.trips.forEach((b, j) => {
+      if (i >= j) return
+      const sameDate = new Date(a.date).toDateString() === new Date(b.date).toDateString()
+      const sameOrigin = a.originType === b.originType && (
+        a.originType === 'HOME' ? true
+          : a.originType === 'PROPERTY' ? a.originProperty?.id === b.originProperty?.id
+          : a.originAddress === b.originAddress
+      )
+      const sameDest = a.destinationType === b.destinationType && (
+        a.destinationType === 'PROPERTY' ? a.destinationProperty?.id === b.destinationProperty?.id
+          : a.destinationAddress === b.destinationAddress
+      )
+      if (sameDate && sameOrigin && sameDest) {
+        duplicateTripIds.add(a.id)
+        duplicateTripIds.add(b.id)
+      }
+    })
+  })
 
   // ── Trip-level actions ──
 
@@ -371,10 +393,22 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
               </TableRow>
             </TableHeader>
             <TableBody>
-              {report.trips.map((trip) => (
+              {duplicateTripIds.size > 0 && (
+                <TableRow>
+                  <TableCell colSpan={isPending ? 9 : 8} className="py-2 bg-amber-50 border-b border-amber-200">
+                    <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <strong>Possible duplicates detected</strong> — trips highlighted in amber appear to have the same date, origin, and destination.
+                    </p>
+                  </TableCell>
+                </TableRow>
+              )}
+              {report.trips.map((trip) => {
+                const isDupe = duplicateTripIds.has(trip.id)
+                return (
                 <Fragment key={trip.id}>
                   <TableRow
-                    className={trip.tripStatus === 'REJECTED' ? 'bg-red-50/50' : undefined}
+                    className={trip.tripStatus === 'REJECTED' ? 'bg-red-50/50' : isDupe ? 'bg-amber-50/60' : undefined}
                   >
                     <TableCell className="text-sm">{formatDate(trip.date)}</TableCell>
                     <TableCell className="text-sm">
@@ -435,8 +469,19 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
                       </TableCell>
                     </TableRow>
                   )}
+                  {isDupe && (
+                    <TableRow className="bg-amber-50/60">
+                      <TableCell colSpan={isPending ? 9 : 8} className="py-1 pb-2">
+                        <p className="text-xs text-amber-700 flex items-center gap-1.5 pl-1">
+                          <Copy className="h-3.5 w-3.5 shrink-0" />
+                          Possible duplicate — same date, origin, and destination as another trip on this report.
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </Fragment>
-              ))}
+              )
+              })}
             </TableBody>
           </Table>
         </CardContent>

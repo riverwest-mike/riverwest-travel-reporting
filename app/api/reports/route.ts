@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as ReportStatus | null
     const employeeId = searchParams.get('employeeId')
 
-    let where: Record<string, unknown> = {}
+    let where: Record<string, unknown> = { deletedAt: null }
 
     if (employee.role === Role.ADMIN) {
       // Admin sees all reports, optionally filtered
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         { employeeId: employee.id },
         { employee: { managerId: employee.id } },
       ]
-      if (employeeId) where = { employeeId }
+      if (employeeId) where = { employeeId, deletedAt: null }
     } else {
       where.employeeId = employee.id
     }

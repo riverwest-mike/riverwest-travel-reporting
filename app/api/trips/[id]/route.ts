@@ -28,6 +28,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       roundTrip, purpose,
     } = body
 
+    if (date !== undefined && new Date(date) > new Date()) {
+      return NextResponse.json({ error: 'Trip date cannot be in the future' }, { status: 400 })
+    }
+
     // Re-resolve addresses if origin/destination changed
     let newDistance = trip.distance
     const originChanged = originType !== undefined

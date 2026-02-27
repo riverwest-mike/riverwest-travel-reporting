@@ -30,6 +30,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Purpose / Notes is required for each trip' }, { status: 400 })
     }
 
+    const tripDate = new Date(date)
+    if (tripDate > new Date()) {
+      return NextResponse.json({ error: 'Trip date cannot be in the future' }, { status: 400 })
+    }
+
     const report = await db.expenseReport.findUnique({ where: { id: reportId } })
     if (!report) return NextResponse.json({ error: 'Report not found' }, { status: 404 })
     if (report.employeeId !== employee.id) {
@@ -37,6 +42,32 @@ export async function POST(request: NextRequest) {
     }
     if (report.status !== ReportStatus.DRAFT) {
       return NextResponse.json({ error: 'Cannot add trips to a non-draft report' }, { status: 409 })
+    }
+
+    // Duplicate trip check: same date + same origin + same destination on this report
+    const existingTrips = await db.trip.findMany({
+      where: { reportId },
+      select: { date: true, originType: true, originPropertyId: true, originAddress: true, destinationType: true, destinationPropertyId: true, destinationAddress: true },
+    })
+    const tripDateStr = new Date(date).toDateString()
+    const isDuplicate = existingTrips.some(t => {
+      if (new Date(t.date).toDateString() !== tripDateStr) return false
+      const sameOrigin = t.originType === originType && (
+        originType === 'PROPERTY' ? t.originPropertyId === originPropertyId
+          : originType === 'HOME' ? true
+          : t.originAddress === originAddress
+      )
+      const sameDest = t.destinationType === destinationType && (
+        destinationType === 'PROPERTY' ? t.destinationPropertyId === destinationPropertyId
+          : t.destinationAddress === destinationAddress
+      )
+      return sameOrigin && sameDest
+    })
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: 'A trip with the same date, origin, and destination already exists on this report.' },
+        { status: 409 }
+      )
     }
 
     // Resolve addresses
