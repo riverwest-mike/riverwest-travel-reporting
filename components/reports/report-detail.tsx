@@ -344,7 +344,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                 reportId={report.id}
                 onSuccess={handleTripAdded}
                 onCancel={() => setShowTripForm(false)}
-                hasHomeAddress={Boolean(currentEmployee.homeAddress)}
+                hasHomeAddress={true}
                 existingTrips={report.trips}
               />
             </div>
@@ -477,7 +477,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                                 reportId={report.id}
                                 onSuccess={handleTripAdded}
                                 onCancel={() => setEditingTrip(null)}
-                                hasHomeAddress={Boolean(currentEmployee.homeAddress)}
+                                hasHomeAddress={true}
                                 existingTrips={report.trips}
                                 editValues={{
                                   tripId: trip.id,

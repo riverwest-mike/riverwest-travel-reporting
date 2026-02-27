@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { ReportStatus } from '@prisma/client'
 import { recalcReportTotals } from '@/lib/reports'
 import { calculateDistance, buildAddress } from '@/lib/mileage'
+import { DEFAULT_OFFICE_ADDRESS } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,13 +76,7 @@ export async function POST(request: NextRequest) {
     let resolvedDestination: string
 
     if (originType === 'HOME') {
-      if (!employee.homeAddress) {
-        return NextResponse.json(
-          { error: 'Your home address is not set. Please update it in Profile & Settings.' },
-          { status: 400 }
-        )
-      }
-      resolvedOrigin = employee.homeAddress
+      resolvedOrigin = employee.homeAddress ?? DEFAULT_OFFICE_ADDRESS
     } else if (originType === 'PROPERTY') {
       const prop = await db.property.findUnique({ where: { id: originPropertyId } })
       if (!prop) return NextResponse.json({ error: 'Origin property not found' }, { status: 404 })

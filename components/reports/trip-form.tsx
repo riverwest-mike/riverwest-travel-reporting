@@ -501,9 +501,7 @@ function LocationPicker({
         </SelectTrigger>
         <SelectContent>
           {includeHome && (
-            <SelectItem value="HOME" disabled={homeDisabled}>
-              {homeDisabled ? 'Primary Office (set address in Settings)' : 'Primary Office'}
-            </SelectItem>
+            <SelectItem value="HOME">Primary Office</SelectItem>
           )}
           <SelectItem value="PROPERTY">Property</SelectItem>
           <SelectItem value="OTHER">Other Address</SelectItem>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, CheckCircle2, MapPin, User } from 'lucide-react'
+import { DEFAULT_OFFICE_ADDRESS } from '@/lib/constants'
 
 interface Employee {
   id: string
@@ -28,7 +29,7 @@ export default function SettingsPage() {
       .then((data: Employee[]) => {
         if (data.length > 0) {
           setEmployee(data[0])
-          setHomeAddress(data[0].homeAddress ?? '')
+          setHomeAddress(data[0].homeAddress ?? DEFAULT_OFFICE_ADDRESS)
         }
       })
       .catch(console.error)
