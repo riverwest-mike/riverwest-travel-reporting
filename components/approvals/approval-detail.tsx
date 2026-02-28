@@ -32,7 +32,7 @@ interface ReportData {
   totalMiles: number; totalAmount: number; mileageRate: number; notes: string | null
   submittedAt: string | null; approvedAt: string | null; rejectedAt: string | null
   rejectionReason: string | null
-  employee: { id: string; name: string; email: string; managerId: string | null }
+  employee: { id: string; name: string; email: string }
   trips: Trip[]
   approvedBy: { id: string; name: string } | null
   rejectedBy: { id: string; name: string } | null
@@ -54,7 +54,8 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
   const [notingTripId, setNotingTripId] = useState<string | null>(null)
   const [draftNote, setDraftNote] = useState('')
 
-  // Report-level reject dialog
+  // Report-level approve/reject dialogs
+  const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
@@ -108,6 +109,7 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
   // ── Report-level actions ──
 
   async function handleApprove() {
+    setShowApproveDialog(false)
     setReportLoading(true)
     setError('')
     try {
@@ -181,7 +183,7 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
               <XCircle className="h-4 w-4" />
               Send Back for Revision
             </Button>
-            <Button variant="success" onClick={handleApprove} disabled={reportLoading}>
+            <Button variant="success" onClick={() => setShowApproveDialog(true)} disabled={reportLoading}>
               {reportLoading
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <CheckCircle2 className="h-4 w-4" />}
@@ -398,6 +400,38 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
           </Table>
         </CardContent>
       </Card>
+
+      {/* Approve confirmation dialog */}
+      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Approve Report</DialogTitle>
+            <DialogDescription>
+              Confirm approval of <strong>{report.reportNumber}</strong> for{' '}
+              <strong>{report.employee.name}</strong>. An Excel summary will be emailed to accounting
+              and the employee will be notified.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total miles</span>
+              <span className="font-medium">{report.totalMiles.toFixed(1)} mi</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Reimbursement</span>
+              <span className="font-medium">${report.totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowApproveDialog(false)}>Cancel</Button>
+            <Button variant="success" onClick={handleApprove} disabled={reportLoading}>
+              {reportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Confirm Approval
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Send Back dialog */}
       <Dialog open={showRejectDialog} onOpenChange={(open) => { if (!open) { setShowRejectDialog(false); setRejectReason('') } }}>

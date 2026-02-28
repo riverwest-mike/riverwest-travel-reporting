@@ -7,15 +7,23 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   try {
     const manager = await requireEmployee()
 
-    if (manager.role !== Role.MANAGER && manager.role !== Role.ADMIN) {
+    if (
+      manager.role !== Role.MANAGER &&
+      manager.role !== Role.ADMIN &&
+      manager.role !== Role.APPLICATION_OWNER
+    ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const isAdminOrAO = manager.role === Role.ADMIN || manager.role === Role.APPLICATION_OWNER
 
     const trip = await db.trip.findUnique({
       where: { id: params.id },
       include: {
         report: {
-          include: { employee: true },
+          include: {
+            employee: { include: { approvers: { select: { approverId: true } } } },
+          },
         },
       },
     })
@@ -25,8 +33,13 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'Cannot approve trips on a non-submitted report' }, { status: 409 })
     }
 
-    if (manager.role !== Role.ADMIN && trip.report.employee.managerId !== manager.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!isAdminOrAO) {
+      const isAllowedApprover = trip.report.employee.approvers.some(
+        (a) => a.approverId === manager.id
+      )
+      if (!isAllowedApprover) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     const updated = await db.trip.update({

@@ -9,7 +9,8 @@ import { Users, Building2, ClipboardList, CheckSquare, BarChart3, FileSpreadshee
 
 export default async function AdminDashboardPage() {
   const employee = await requireEmployee()
-  if (employee.role !== Role.ADMIN) redirect('/reports')
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  if (!isAdminOrAO) redirect('/reports')
 
   const [employees, properties, reports] = await Promise.all([
     db.employee.count({ where: { isActive: true } }),

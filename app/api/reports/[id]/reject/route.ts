@@ -4,12 +4,20 @@ import { db } from '@/lib/db'
 import { ReportStatus, Role } from '@prisma/client'
 import { notifyEmployeeOfDecision } from '@/lib/email'
 import { formatPeriod } from '@/lib/utils'
+import { tripLocationLabel } from '@/lib/reports'
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const manager = await requireEmployee()
 
-    if (manager.role !== Role.MANAGER && manager.role !== Role.ADMIN) {
+    const isAdminOrAO =
+      manager.role === Role.ADMIN || manager.role === Role.APPLICATION_OWNER
+
+    if (
+      manager.role !== Role.MANAGER &&
+      manager.role !== Role.ADMIN &&
+      manager.role !== Role.APPLICATION_OWNER
+    ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -22,7 +30,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const report = await db.expenseReport.findUnique({
       where: { id: params.id },
-      include: { employee: true },
+      include: {
+        employee: {
+          include: {
+            approvers: { select: { approverId: true } },
+          },
+        },
+        trips: {
+          include: { originProperty: true, destinationProperty: true },
+          orderBy: { date: 'asc' },
+        },
+      },
     })
 
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -30,8 +48,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Only submitted reports can be sent back' }, { status: 409 })
     }
 
-    if (manager.role !== Role.ADMIN && report.employee.managerId !== manager.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Verify approver relationship (admin/AO can reject any)
+    if (!isAdminOrAO) {
+      const isAllowedApprover = report.employee.approvers.some(
+        (a) => a.approverId === manager.id
+      )
+      if (!isAllowedApprover) {
+        return NextResponse.json(
+          { error: 'Forbidden: not an allowed approver for this employee' },
+          { status: 403 }
+        )
+      }
     }
 
     // Clear all existing manager notes on trips
@@ -62,7 +89,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       },
     })
 
-    // Notify employee (fire-and-forget)
+    // Build TripNote objects with full date/origin/destination labels
+    const resolvedTripNotes = Array.isArray(tripNotes)
+      ? (tripNotes as { tripId: string; note: string }[])
+          .filter((tn) => tn.note?.trim())
+          .map((tn) => {
+            const trip = report.trips.find((t) => t.id === tn.tripId)
+            if (!trip) return null
+            return {
+              date: trip.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              origin: tripLocationLabel(trip.originType, trip.originProperty?.name, trip.originAddress, trip.originType === 'HOME'),
+              destination: tripLocationLabel(trip.destinationType, trip.destinationProperty?.name, trip.destinationAddress, false),
+              note: tn.note.trim(),
+            }
+          })
+          .filter((tn): tn is NonNullable<typeof tn> => tn !== null)
+      : undefined
+
+    // Notify employee with per-trip notes (fire-and-forget)
     notifyEmployeeOfDecision({
       employeeEmail: report.employee.email,
       employeeName: report.employee.name,
@@ -70,6 +114,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       period: formatPeriod(report.periodMonth, report.periodYear),
       approved: false,
       rejectionReason: reason.trim(),
+      tripNotes: resolvedTripNotes,
       reportUrl: `${process.env.NEXT_PUBLIC_APP_URL}/reports/${report.id}`,
     }).catch(console.error)
 

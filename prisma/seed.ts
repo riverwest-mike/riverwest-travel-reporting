@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from '@prisma/client'
+import { PrismaClient, Role, EmployeeStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -72,7 +72,7 @@ async function main() {
   const properties = await Promise.all(
     propData.map((p) =>
       prisma.property.upsert({
-        where: { name: p.name } as never,
+        where: { name: p.name },
         update: { address: p.address, city: p.city, state: p.state },
         create: p,
       })
@@ -82,59 +82,110 @@ async function main() {
   console.log(`Seeded ${properties.length} properties`)
 
   // ── Employees ─────────────────────────────────────────────────────────────
-  // Dan Irwin — ADMIN + manager of all
+
+  // Mike Pisano — APPLICATION_OWNER
+  const mikePisano = await prisma.employee.upsert({
+    where: { email: 'mpisano@riverwestpartners.com' },
+    update: { role: Role.APPLICATION_OWNER, status: EmployeeStatus.ACTIVE },
+    create: {
+      name: 'Mike Pisano',
+      email: 'mpisano@riverwestpartners.com',
+      role: Role.APPLICATION_OWNER,
+      status: EmployeeStatus.ACTIVE,
+      homeAddress: '',
+    },
+  })
+
+  // Dan Irwin — ADMIN
   const dan = await prisma.employee.upsert({
     where: { email: 'dan@riverwestpartners.com' },
-    update: {},
+    update: { status: EmployeeStatus.ACTIVE },
     create: {
       name: 'Dan Irwin',
       email: 'dan@riverwestpartners.com',
       role: Role.ADMIN,
-      homeAddress: '', // Employee should update via profile settings
+      status: EmployeeStatus.ACTIVE,
+      homeAddress: '',
     },
   })
 
-  // Regular employees, all managed by Dan
-  const employees = await Promise.all([
-    prisma.employee.upsert({
-      where: { email: 'laura@riverwestpartners.com' },
-      update: {},
-      create: {
-        name: 'Laura Sievers',
-        email: 'laura@riverwestpartners.com',
-        role: Role.EMPLOYEE,
-        managerId: dan.id,
-        homeAddress: '',
-      },
-    }),
-    prisma.employee.upsert({
-      where: { email: 'mike@riverwestpartners.com' },
-      update: {},
-      create: {
-        name: 'Mike Kolasa',
-        email: 'mike@riverwestpartners.com',
-        role: Role.EMPLOYEE,
-        managerId: dan.id,
-        homeAddress: '',
-      },
-    }),
-    prisma.employee.upsert({
-      where: { email: 'nick@riverwestpartners.com' },
-      update: {},
-      create: {
-        name: 'Nick Kolasa',
-        email: 'nick@riverwestpartners.com',
-        role: Role.EMPLOYEE,
-        managerId: dan.id,
-        homeAddress: '',
-      },
-    }),
-  ])
+  // Regular employees
+  const laura = await prisma.employee.upsert({
+    where: { email: 'laura@riverwestpartners.com' },
+    update: { status: EmployeeStatus.ACTIVE },
+    create: {
+      name: 'Laura Sievers',
+      email: 'laura@riverwestpartners.com',
+      role: Role.EMPLOYEE,
+      status: EmployeeStatus.ACTIVE,
+      homeAddress: '',
+    },
+  })
 
-  console.log(`Seeded Dan Irwin (ADMIN) + ${employees.length} employees`)
-  console.log('\nEmployee emails seeded:')
-  console.log(`  dan@riverwestpartners.com  (ADMIN/Manager)`)
-  employees.forEach(e => console.log(`  ${e.email}  (Employee)`))
+  const mikeKolasa = await prisma.employee.upsert({
+    where: { email: 'mike@riverwestpartners.com' },
+    update: { status: EmployeeStatus.ACTIVE },
+    create: {
+      name: 'Mike Kolasa',
+      email: 'mike@riverwestpartners.com',
+      role: Role.EMPLOYEE,
+      status: EmployeeStatus.ACTIVE,
+      homeAddress: '',
+    },
+  })
+
+  const nick = await prisma.employee.upsert({
+    where: { email: 'nick@riverwestpartners.com' },
+    update: { status: EmployeeStatus.ACTIVE },
+    create: {
+      name: 'Nick Kolasa',
+      email: 'nick@riverwestpartners.com',
+      role: Role.EMPLOYEE,
+      status: EmployeeStatus.ACTIVE,
+      homeAddress: '',
+    },
+  })
+
+  // ── EmployeeApprover relationships ────────────────────────────────────────
+  // Dan approves for: Laura, Mike K, Nick
+  const approverPairs = [
+    { employeeId: laura.id, approverId: dan.id },
+    { employeeId: mikeKolasa.id, approverId: dan.id },
+    { employeeId: nick.id, approverId: dan.id },
+  ]
+
+  for (const pair of approverPairs) {
+    await prisma.employeeApprover.upsert({
+      where: { employeeId_approverId: pair },
+      update: {},
+      create: pair,
+    })
+  }
+
+  console.log(`Seeded EmployeeApprover relationships (Dan approves for Laura, Mike K, Nick)`)
+
+  // ── Seed initial mileage rate ──────────────────────────────────────────────
+  const existingRate = await prisma.mileageRate.findFirst({
+    orderBy: { effectiveDate: 'desc' },
+  })
+  if (!existingRate) {
+    const envRate = parseFloat(process.env.MILEAGE_RATE ?? '0.70')
+    await prisma.mileageRate.create({
+      data: {
+        rate: envRate,
+        effectiveDate: new Date('2025-01-01'),
+        createdById: mikePisano.id,
+      },
+    })
+    console.log(`Seeded initial mileage rate: $${envRate}/mile (effective 2025-01-01)`)
+  }
+
+  console.log('\nEmployee accounts seeded:')
+  console.log(`  mpisano@riverwestpartners.com  (APPLICATION_OWNER)`)
+  console.log(`  dan@riverwestpartners.com      (ADMIN / approver for team)`)
+  console.log(`  laura@riverwestpartners.com    (EMPLOYEE, approved by Dan)`)
+  console.log(`  mike@riverwestpartners.com     (EMPLOYEE, approved by Dan)`)
+  console.log(`  nick@riverwestpartners.com     (EMPLOYEE, approved by Dan)`)
   console.log('\nNOTE: Set employee home addresses in the Admin panel or via the Settings page.')
 }
 

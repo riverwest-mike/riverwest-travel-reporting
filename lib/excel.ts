@@ -240,6 +240,7 @@ export interface AccountingTripRow {
   destinationLocation: string
   businessPurpose: string
   approvedMileage: number
+  mileageRate: number
   reimbursementTotal: number
   managerName: string
   reportName: string
@@ -272,13 +273,14 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
     { key: 'destinationLocation', width: 28 },
     { key: 'businessPurpose', width: 32 },
     { key: 'approvedMileage', width: 18 },
+    { key: 'mileageRate', width: 14 },
     { key: 'reimbursementTotal', width: 20 },
     { key: 'managerName', width: 22 },
     { key: 'reportName', width: 24 },
   ]
 
   // Row 1: Company header
-  sheet.mergeCells('A1:I1')
+  sheet.mergeCells('A1:J1')
   const titleCell = sheet.getCell('A1')
   titleCell.value = 'RiverWest Properties'
   titleCell.font = { bold: true, size: 16, color: { argb: white } }
@@ -287,7 +289,7 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
   sheet.getRow(1).height = 28
 
   // Row 2: Report title
-  sheet.mergeCells('A2:I2')
+  sheet.mergeCells('A2:J2')
   const subtitleCell = sheet.getCell('A2')
   subtitleCell.value = `Mileage Reimbursement — Accounting Report  |  Generated: ${new Date().toLocaleDateString()}`
   subtitleCell.font = { bold: true, size: 12, color: { argb: white } }
@@ -306,6 +308,7 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
     'Destination Location',
     'Business Purpose',
     'Approved Mileage',
+    'Rate ($/mi)',
     'Reimbursement Total',
     'Manager',
     'Report Name',
@@ -336,6 +339,7 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
       trip.destinationLocation,
       trip.businessPurpose,
       trip.approvedMileage,
+      trip.mileageRate,
       trip.reimbursementTotal,
       trip.managerName,
       trip.reportName,
@@ -348,7 +352,8 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
       cell.alignment = { horizontal: i >= 5 ? 'center' : 'left', vertical: 'middle' }
       if (i === 5) cell.numFmt = '0.0'
-      if (i === 6) cell.numFmt = '"$"#,##0.00'
+      if (i === 6) cell.numFmt = '"$"0.000'
+      if (i === 7) cell.numFmt = '"$"#,##0.00'
     })
 
     totalMiles += trip.approvedMileage
@@ -373,7 +378,10 @@ export async function generateAccountingExcel(trips: AccountingTripRow[]): Promi
   milesCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightBlue } }
   milesCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
-  const amountCell = totalsRow.getCell(7)
+  // Col 7 (Mileage Rate) — blank in totals row
+  totalsRow.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightBlue } }
+
+  const amountCell = totalsRow.getCell(8)
   amountCell.value = totalAmount
   amountCell.numFmt = '"$"#,##0.00'
   amountCell.font = { bold: true, size: 10, color: { argb: navy } }

@@ -11,9 +11,28 @@ import { formatCurrency, formatMiles, formatDate } from '@/lib/utils'
 
 export default async function AccountingLogPage() {
   const employee = await requireEmployee()
-  if (employee.role !== Role.ADMIN) redirect('/reports')
+
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  const isManager = employee.role === Role.MANAGER
+
+  if (!isAdminOrAO && !isManager) redirect('/reports')
+
+  // Build filter: admins/AO see all; managers see only their team
+  let logsWhere = {}
+  if (isManager) {
+    // Find employees this manager can approve for
+    const approverLinks = await db.employeeApprover.findMany({
+      where: { approverId: employee.id },
+      select: { employeeId: true },
+    })
+    const teamEmployeeIds = approverLinks.map((a) => a.employeeId)
+    logsWhere = {
+      expenseReport: { employeeId: { in: teamEmployeeIds } },
+    }
+  }
 
   const logs = await db.accountingExportLog.findMany({
+    where: logsWhere,
     orderBy: { sentAt: 'desc' },
     include: {
       expenseReport: { select: { id: true } },
@@ -25,17 +44,19 @@ export default async function AccountingLogPage() {
     { miles: 0, amount: 0, trips: 0 }
   )
 
+  const backHref = isAdminOrAO ? '/admin' : '/approvals'
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/admin"><ArrowLeft className="h-4 w-4" /> Back</Link>
+            <Link href={backHref}><ArrowLeft className="h-4 w-4" /> Back</Link>
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-navy-600">Sent to Accounting</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
-              Log of all accounting reports emailed to the controller
+              {isManager ? 'Accounting reports for your team' : 'Log of all accounting reports emailed to the controller'}
             </p>
           </div>
         </div>
@@ -78,44 +99,46 @@ export default async function AccountingLogPage() {
               <p className="text-sm mt-1 opacity-70">Reports appear here when expense reports are approved.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date Sent</TableHead>
-                  <TableHead>Report #</TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Trips</TableHead>
-                  <TableHead>Miles</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Sent To</TableHead>
-                  <TableHead>File Name</TableHead>
-                  <TableHead className="w-20" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-sm">{formatDate(log.sentAt)}</TableCell>
-                    <TableCell className="font-mono text-sm">{log.reportNumber}</TableCell>
-                    <TableCell className="text-sm">{log.employeeName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{log.managerName}</TableCell>
-                    <TableCell className="text-sm">{log.tripCount}</TableCell>
-                    <TableCell className="text-sm">{formatMiles(log.totalMiles)}</TableCell>
-                    <TableCell className="text-sm font-medium">{formatCurrency(log.totalAmount)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{log.sentToEmail}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate" title={log.fileName}>
-                      {log.fileName}
-                    </TableCell>
-                    <TableCell>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/reports/${log.expenseReport.id}`}>View</Link>
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date Sent</TableHead>
+                    <TableHead className="hidden sm:table-cell">Report #</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead className="hidden md:table-cell">Manager</TableHead>
+                    <TableHead className="hidden md:table-cell">Trips</TableHead>
+                    <TableHead className="hidden sm:table-cell">Miles</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead className="hidden lg:table-cell">Sent To</TableHead>
+                    <TableHead className="hidden lg:table-cell">File Name</TableHead>
+                    <TableHead className="w-20" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-sm">{formatDate(log.sentAt)}</TableCell>
+                      <TableCell className="font-mono text-sm hidden sm:table-cell">{log.reportNumber}</TableCell>
+                      <TableCell className="text-sm">{log.employeeName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{log.managerName}</TableCell>
+                      <TableCell className="text-sm hidden md:table-cell">{log.tripCount}</TableCell>
+                      <TableCell className="text-sm hidden sm:table-cell">{formatMiles(log.totalMiles)}</TableCell>
+                      <TableCell className="text-sm font-medium">{formatCurrency(log.totalAmount)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{log.sentToEmail}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate hidden lg:table-cell" title={log.fileName}>
+                        {log.fileName}
+                      </TableCell>
+                      <TableCell>
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={`/reports/${log.expenseReport.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

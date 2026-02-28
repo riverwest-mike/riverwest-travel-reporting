@@ -85,6 +85,9 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
     ? report.trips.filter((t) => t.managerNote)
     : []
 
+  // Resubmit message for approvers
+  const [resubmitMessage, setResubmitMessage] = useState('')
+
   // Admin delete state
   const [showAdminDeleteDialog, setShowAdminDeleteDialog] = useState(false)
   const [adminDeleteReason, setAdminDeleteReason] = useState('')
@@ -149,9 +152,14 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
     setActionLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/reports/${report.id}/resubmit`, { method: 'POST' })
+      const res = await fetch(`/api/reports/${report.id}/resubmit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resubmitMessage: resubmitMessage.trim() || null }),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to resubmit')
+      setResubmitMessage('')
       // Same report, now SUBMITTED — refresh to clear manager notes
       await refreshReport()
     } catch (e) {
@@ -266,9 +274,18 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
             </div>
           )}
           {isOwner && (
-            <p className="text-sm text-amber-700 font-medium pt-1">
-              Edit your trips below, then click &ldquo;Resubmit for Approval&rdquo; when ready.
-            </p>
+            <div className="pt-2 space-y-2">
+              <p className="text-sm text-amber-700 font-medium">
+                Edit your trips below, then resubmit when ready.
+              </p>
+              <Textarea
+                placeholder="Optional message to your approver (e.g. I&apos;ve corrected the mileage on the Jan 15 trip)..."
+                value={resubmitMessage}
+                onChange={(e) => setResubmitMessage(e.target.value)}
+                rows={2}
+                className="text-sm bg-white border-amber-300 focus:border-amber-400"
+              />
+            </div>
           )}
         </div>
       )}

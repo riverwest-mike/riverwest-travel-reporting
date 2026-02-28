@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       ...(employeeId && { employeeId }),
       ...(year && { periodYear: year }),
       ...(month && { periodMonth: month }),
-      ...(managerId && { employee: { managerId } }),
+      ...(managerId && { employee: { approvers: { some: { approverId: managerId } } } }),
     }
 
     const trips = await db.trip.findMany({
@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
       destinationLocation: tripLabel(t.destinationType, t.destinationProperty, t.destinationAddress),
       businessPurpose: t.purpose ?? '',
       approvedMileage: t.roundTrip ? t.distance * 2 : t.distance,
+      mileageRate: t.report.mileageRate,
       reimbursementTotal: (t.roundTrip ? t.distance * 2 : t.distance) * t.report.mileageRate,
       managerName: t.report.approvedBy?.name ?? '—',
       reportName: t.report.reportNumber,

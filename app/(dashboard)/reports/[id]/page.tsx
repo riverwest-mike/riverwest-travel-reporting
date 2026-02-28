@@ -15,7 +15,7 @@ export default async function ReportPage({ params }: { params: { id: string } })
   const report = await db.expenseReport.findUnique({
     where: { id: params.id },
     include: {
-      employee: { select: { id: true, name: true, email: true, homeAddress: true, managerId: true } },
+      employee: { select: { id: true, name: true, email: true, homeAddress: true, approvers: { select: { approverId: true } } } },
       trips: {
         include: tripInclude,
         orderBy: { date: 'asc' },
@@ -29,12 +29,10 @@ export default async function ReportPage({ params }: { params: { id: string } })
 
   // Access control
   const isOwner = report.employeeId === employee.id
-  const isManagerOfOwner =
-    (employee.role === Role.MANAGER || employee.role === Role.ADMIN) &&
-    report.employee.managerId === employee.id
-  const isAdmin = employee.role === Role.ADMIN
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  const isApprover = report.employee.approvers.some((a) => a.approverId === employee.id)
 
-  if (!isOwner && !isManagerOfOwner && !isAdmin) {
+  if (!isOwner && !isApprover && !isAdminOrAO) {
     redirect('/reports')
   }
 

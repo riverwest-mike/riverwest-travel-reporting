@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
   try {
     // ── Clear existing data ────────────────────────────────────────────────
     await db.trip.deleteMany()
+    await db.accountingExportLog.deleteMany()
     await db.expenseReport.deleteMany()
+    await db.employeeApprover.deleteMany()
     await db.employee.deleteMany()
     await db.property.deleteMany()
 
@@ -105,51 +107,68 @@ export async function GET(request: NextRequest) {
       data: { name: 'Kelly Meeder', email: 'kmeeder@riverwestpartners.com', role: Role.ADMIN },
     })
 
-    // ── Level 2: Managers (report to Frank Tice) ──────────────────────────
+    // ── Level 2: Managers (approved by Frank Tice) ───────────────────────
     const erica = await db.employee.create({
-      data: { name: 'Erica Schork', email: 'eschork@riverwestproperties.com', role: Role.MANAGER, managerId: frank.id },
+      data: { name: 'Erica Schork', email: 'eschork@riverwestproperties.com', role: Role.MANAGER },
     })
     const richard = await db.employee.create({
-      data: { name: 'Richard Kellermann', email: 'rkellermann@riverwestproperties.com', role: Role.MANAGER, managerId: frank.id },
+      data: { name: 'Richard Kellermann', email: 'rkellermann@riverwestproperties.com', role: Role.MANAGER },
     })
     const dan = await db.employee.create({
-      data: { name: 'Dan Irwin', email: 'dirwin@riverwestproperties.com', role: Role.MANAGER, managerId: frank.id },
+      data: { name: 'Dan Irwin', email: 'dirwin@riverwestproperties.com', role: Role.MANAGER },
+    })
+
+    // Managers are approved by Frank Tice
+    await db.employeeApprover.createMany({
+      data: [
+        { employeeId: erica.id, approverId: frank.id },
+        { employeeId: richard.id, approverId: frank.id },
+        { employeeId: dan.id, approverId: frank.id },
+      ],
     })
 
     // ── Level 3: Employees ────────────────────────────────────────────────
     const employeeData = [
       // Under Erica Schork
-      { name: 'Jessica Handa', email: 'jhanda@riverwestproperties.com', managerId: erica.id },
-      { name: 'Madisyn Campos', email: 'mcampos@riverwestproperties.com', managerId: erica.id },
+      { name: 'Jessica Handa', email: 'jhanda@riverwestproperties.com', approverId: erica.id },
+      { name: 'Madisyn Campos', email: 'mcampos@riverwestproperties.com', approverId: erica.id },
       // Under Richard Kellermann
-      { name: 'Dustin Palma', email: 'dpalma@riverwestproperties.com', managerId: richard.id },
-      { name: 'Stephen Stertzbach', email: 'sstertzbach@riverwestproperties.com', managerId: richard.id },
+      { name: 'Dustin Palma', email: 'dpalma@riverwestproperties.com', approverId: richard.id },
+      { name: 'Stephen Stertzbach', email: 'sstertzbach@riverwestproperties.com', approverId: richard.id },
       // Under Dan Irwin
-      { name: 'Aaron Rodriguez', email: 'arodriguez@riverwestproperties.com', managerId: dan.id },
-      { name: 'Benjamin Bowman', email: 'bbowman@riverwestproperties.com', managerId: dan.id },
-      { name: 'Chris Keller', email: 'ckeller@riverwestproperties.com', managerId: dan.id },
-      { name: 'Russ Milburn', email: 'rmilburn@riverwestproperties.com', managerId: dan.id },
-      { name: 'Ryan Marlowe', email: 'rmarlowe@riverwestproperties.com', managerId: dan.id },
-      { name: 'Leon Woodfork', email: 'lwoodfork@riverwestproperties.com', managerId: dan.id },
+      { name: 'Aaron Rodriguez', email: 'arodriguez@riverwestproperties.com', approverId: dan.id },
+      { name: 'Benjamin Bowman', email: 'bbowman@riverwestproperties.com', approverId: dan.id },
+      { name: 'Chris Keller', email: 'ckeller@riverwestproperties.com', approverId: dan.id },
+      { name: 'Russ Milburn', email: 'rmilburn@riverwestproperties.com', approverId: dan.id },
+      { name: 'Ryan Marlowe', email: 'rmarlowe@riverwestproperties.com', approverId: dan.id },
+      { name: 'Leon Woodfork', email: 'lwoodfork@riverwestproperties.com', approverId: dan.id },
       // Under Michael Pisano
-      { name: 'Tyler Milliren', email: 'tmilliren@riverwestpartners.com', managerId: michael.id },
-      { name: 'Renee Rawlins', email: 'rrawlins@riverwestpartners.com', managerId: michael.id },
-      { name: 'Jessica Hagans', email: 'jhagans@riverwestpartners.com', managerId: michael.id },
-      { name: 'Controller Test', email: 'controller@riverwestpartners.com', managerId: michael.id },
+      { name: 'Tyler Milliren', email: 'tmilliren@riverwestpartners.com', approverId: michael.id },
+      { name: 'Renee Rawlins', email: 'rrawlins@riverwestpartners.com', approverId: michael.id },
+      { name: 'Jessica Hagans', email: 'jhagans@riverwestpartners.com', approverId: michael.id },
+      { name: 'Controller Test', email: 'controller@riverwestpartners.com', approverId: michael.id },
       // Under Kelly Meeder
-      { name: 'Brittany Gates', email: 'bgates@riverwestproperties.com', managerId: kelly.id },
-      { name: 'Niki Deal', email: 'ndeal@riverwestproperties.com', managerId: kelly.id },
+      { name: 'Brittany Gates', email: 'bgates@riverwestproperties.com', approverId: kelly.id },
+      { name: 'Niki Deal', email: 'ndeal@riverwestproperties.com', approverId: kelly.id },
       // Under Frank Tice (direct reports)
-      { name: 'Brady Sapp', email: 'bsapp@riverwestproperties.com', managerId: frank.id },
-      { name: 'Abbey Spence', email: 'aspence@riverwestproperties.com', managerId: frank.id },
-      { name: 'Jeremy Freeman', email: 'jfreeman@riverwestproperties.com', managerId: frank.id },
+      { name: 'Brady Sapp', email: 'bsapp@riverwestproperties.com', approverId: frank.id },
+      { name: 'Abbey Spence', email: 'aspence@riverwestproperties.com', approverId: frank.id },
+      { name: 'Jeremy Freeman', email: 'jfreeman@riverwestproperties.com', approverId: frank.id },
     ]
 
     const employees = await Promise.all(
-      employeeData.map((e) =>
+      employeeData.map(({ approverId: _approverId, ...e }) =>
         db.employee.create({ data: { ...e, role: Role.EMPLOYEE } })
       )
     )
+
+    // Create approver relationships for employees
+    await db.employeeApprover.createMany({
+      data: employeeData.map((e, i) => ({
+        employeeId: employees[i].id,
+        approverId: e.approverId,
+      })),
+    })
 
     const allEmployees = [frank, michael, kelly, erica, richard, dan, ...employees]
 

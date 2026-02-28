@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton, SignOutButton } from '@clerk/nextjs'
@@ -14,6 +15,11 @@ import {
   ClipboardList,
   LogOut,
   BarChart3,
+  DollarSign,
+  Trash2,
+  UserCheck,
+  Menu,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Role } from '@prisma/client'
@@ -30,10 +36,18 @@ interface SidebarProps {
   employeeName: string
   pendingCount?: number
   employeeActionCount?: number
+  pendingUsersCount?: number
 }
 
-export function Sidebar({ role, employeeName, pendingCount, employeeActionCount }: SidebarProps) {
+export function Sidebar({
+  role,
+  employeeName,
+  pendingCount,
+  employeeActionCount,
+  pendingUsersCount,
+}: SidebarProps) {
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const employeeNav: NavItem[] = [
     { href: '/reports', label: 'My Reports', icon: FileText, badge: employeeActionCount },
@@ -42,6 +56,7 @@ export function Sidebar({ role, employeeName, pendingCount, employeeActionCount 
 
   const managerNav: NavItem[] = [
     { href: '/approvals', label: 'Approvals', icon: CheckSquare, badge: pendingCount },
+    { href: '/admin/accounting', label: 'Sent to Accounting', icon: FileText },
   ]
 
   const adminNav: NavItem[] = [
@@ -53,24 +68,41 @@ export function Sidebar({ role, employeeName, pendingCount, employeeActionCount 
     { href: '/admin/accounting', label: 'Sent to Accounting', icon: FileText },
   ]
 
+  const aoNav: NavItem[] = [
+    {
+      href: '/ao/pending-users',
+      label: 'Pending Users',
+      icon: UserCheck,
+      badge: pendingUsersCount,
+    },
+    { href: '/ao/mileage-rates', label: 'Mileage Rates', icon: DollarSign },
+    { href: '/ao/deleted-reports', label: 'Deleted Reports', icon: Trash2 },
+  ]
+
   const isActive = (href: string) => {
     if (href === '/reports' && pathname === '/reports') return true
     if (href !== '/reports' && pathname.startsWith(href)) return true
     return false
   }
 
-  return (
-    <aside className="w-64 min-h-screen bg-navy-600 flex flex-col">
-      {/* Logo — matches RiverWest Properties brand identity */}
+  const isManagerOrAbove =
+    role === Role.MANAGER || role === Role.ADMIN || role === Role.APPLICATION_OWNER
+  const isAdminOrAbove = role === Role.ADMIN || role === Role.APPLICATION_OWNER
+  const isAO = role === Role.APPLICATION_OWNER
+
+  const totalBadge =
+    (pendingCount ?? 0) + (employeeActionCount ?? 0) + (pendingUsersCount ?? 0)
+
+  const sidebarContent = (
+    <>
+      {/* Logo */}
       <div className="px-5 py-5 border-b border-navy-500">
         <div className="flex items-center gap-3">
-          {/* RW monogram block */}
           <div className="flex-shrink-0 w-10 h-10 border border-gold-500/70 flex items-center justify-center">
             <span className="font-playfair text-gold-400 text-lg font-bold leading-none tracking-tight select-none">
               RW
             </span>
           </div>
-          {/* Wordmark */}
           <div>
             <p className="text-white text-xs font-semibold tracking-[0.2em] uppercase leading-tight">
               RiverWest
@@ -87,24 +119,49 @@ export function Sidebar({ role, employeeName, pendingCount, employeeActionCount 
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <NavSection label="My Work" items={employeeNav} isActive={isActive} />
+        <NavSection
+          label="My Work"
+          items={employeeNav}
+          isActive={isActive}
+          onNav={() => setMobileOpen(false)}
+        />
 
-        {(role === Role.MANAGER || role === Role.ADMIN) && (
-          <NavSection label="Manager" items={managerNav} isActive={isActive} />
+        {isManagerOrAbove && (
+          <NavSection
+            label="Manager"
+            items={managerNav}
+            isActive={isActive}
+            onNav={() => setMobileOpen(false)}
+          />
         )}
 
-        {role === Role.ADMIN && (
-          <NavSection label="Administration" items={adminNav} isActive={isActive} />
+        {isAdminOrAbove && (
+          <NavSection
+            label="Administration"
+            items={adminNav}
+            isActive={isActive}
+            onNav={() => setMobileOpen(false)}
+          />
+        )}
+
+        {isAO && (
+          <NavSection
+            label="Application Owner"
+            items={aoNav}
+            isActive={isActive}
+            onNav={() => setMobileOpen(false)}
+          />
         )}
       </nav>
 
       {/* Bottom: settings + user */}
       <div className="px-3 pb-4 space-y-1 border-t border-navy-500 pt-3">
-        <NavItem
+        <SidebarNavItem
           href="/settings"
           label="Profile & Settings"
           icon={Settings}
           active={isActive('/settings')}
+          onNav={() => setMobileOpen(false)}
         />
         <div className="flex items-center gap-3 px-3 py-2 rounded-md">
           <UserButton afterSignOutUrl="/sign-in" />
@@ -117,7 +174,55 @@ export function Sidebar({ role, employeeName, pendingCount, employeeActionCount 
           </button>
         </SignOutButton>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobile header bar — visible below lg breakpoint */}
+      <div className="lg:hidden flex items-center justify-between bg-navy-600 px-4 py-3 sticky top-0 z-40">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 border border-gold-500/70 flex items-center justify-center">
+            <span className="text-gold-400 text-sm font-bold leading-none">RW</span>
+          </div>
+          <span className="text-white text-sm font-semibold tracking-wide">Travel Reporting</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {totalBadge > 0 && (
+            <span className="bg-gold-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+              {totalBadge}
+            </span>
+          )}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="text-navy-200 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Desktop sidebar + mobile slide-out drawer */}
+      <aside
+        className={cn(
+          'bg-navy-600 flex flex-col z-40 transition-transform duration-200',
+          'lg:w-64 lg:min-h-screen lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 w-72',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   )
 }
 
@@ -125,10 +230,12 @@ function NavSection({
   label,
   items,
   isActive,
+  onNav,
 }: {
   label: string
   items: NavItem[]
   isActive: (href: string) => boolean
+  onNav: () => void
 }) {
   return (
     <div className="mb-4">
@@ -136,35 +243,39 @@ function NavSection({
         {label}
       </p>
       {items.map((item) => (
-        <NavItem
+        <SidebarNavItem
           key={item.href}
           href={item.href}
           label={item.label}
           icon={item.icon}
           badge={item.badge}
           active={isActive(item.href)}
+          onNav={onNav}
         />
       ))}
     </div>
   )
 }
 
-function NavItem({
+function SidebarNavItem({
   href,
   label,
   icon: Icon,
   badge,
   active,
+  onNav,
 }: {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   badge?: number
   active: boolean
+  onNav: () => void
 }) {
   return (
     <Link
       href={href}
+      onClick={onNav}
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors',
         active

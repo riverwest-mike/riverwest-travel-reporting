@@ -8,18 +8,38 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatCurrency, formatMiles, formatPeriod } from '@/lib/utils'
+import { Clock } from 'lucide-react'
+
+function daysAgo(date: Date | string | null): string {
+  if (!date) return '—'
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return '1 day ago'
+  return `${days} days ago`
+}
 
 export default async function ApprovalsPage() {
   const employee = await requireEmployee()
 
-  if (employee.role !== Role.MANAGER && employee.role !== Role.ADMIN) {
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+
+  if (
+    employee.role !== Role.MANAGER &&
+    employee.role !== Role.ADMIN &&
+    employee.role !== Role.APPLICATION_OWNER
+  ) {
     redirect('/reports')
   }
+
+  // Build the "reports for my team" where clause
+  const myTeamFilter = isAdminOrAO
+    ? {}
+    : { employee: { approvers: { some: { approverId: employee.id } } } }
 
   const pending = await db.expenseReport.findMany({
     where: {
       status: ReportStatus.SUBMITTED,
-      employee: { managerId: employee.id },
+      ...myTeamFilter,
     },
     include: {
       employee: { select: { id: true, name: true, email: true } },
@@ -28,19 +48,19 @@ export default async function ApprovalsPage() {
     orderBy: { submittedAt: 'asc' },
   })
 
-  const recentlyDecided = await db.expenseReport.findMany({
+  // Team history: all statuses for my team (last 50)
+  const teamHistory = await db.expenseReport.findMany({
     where: {
       status: { in: [ReportStatus.APPROVED, ReportStatus.NEEDS_REVISION, ReportStatus.REJECTED] },
-      OR: [
-        { approvedById: employee.id },
-        { rejectedById: employee.id },
-      ],
+      ...myTeamFilter,
     },
     include: {
       employee: { select: { id: true, name: true } },
+      approvedBy: { select: { name: true } },
+      rejectedBy: { select: { name: true } },
     },
     orderBy: { updatedAt: 'desc' },
-    take: 20,
+    take: 50,
   })
 
   return (
@@ -70,79 +90,88 @@ export default async function ApprovalsPage() {
               No reports pending review.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Report #</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Trips</TableHead>
-                  <TableHead>Miles</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pending.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.employee.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{r.reportNumber}</TableCell>
-                    <TableCell>{formatPeriod(r.periodMonth, r.periodYear)}</TableCell>
-                    <TableCell>{r._count.trips}</TableCell>
-                    <TableCell>{formatMiles(r.totalMiles)}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(r.totalAmount)}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {r.submittedAt
-                        ? new Date(r.submittedAt).toLocaleDateString()
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Button asChild size="sm">
-                        <Link href={`/approvals/${r.id}`}>Review</Link>
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead className="hidden sm:table-cell">Report #</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead className="hidden md:table-cell">Trips</TableHead>
+                    <TableHead className="hidden md:table-cell">Miles</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Waiting</TableHead>
+                    <TableHead className="w-24" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pending.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.employee.name}</TableCell>
+                      <TableCell className="font-mono text-sm hidden sm:table-cell">{r.reportNumber}</TableCell>
+                      <TableCell>{formatPeriod(r.periodMonth, r.periodYear)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{r._count.trips}</TableCell>
+                      <TableCell className="hidden md:table-cell">{formatMiles(r.totalMiles)}</TableCell>
+                      <TableCell className="font-medium">{formatCurrency(r.totalAmount)}</TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1 text-sm text-muted-foreground whitespace-nowrap">
+                          <Clock className="h-3.5 w-3.5 shrink-0" />
+                          {daysAgo(r.submittedAt)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Button asChild size="sm">
+                          <Link href={`/approvals/${r.id}`}>Review</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Recently decided */}
-      {recentlyDecided.length > 0 && (
+      {/* Team history */}
+      {teamHistory.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Recently Decided</CardTitle>
+            <CardTitle className="text-base">Team History</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Report #</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-20" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentlyDecided.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.employee.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{r.reportNumber}</TableCell>
-                    <TableCell>{formatPeriod(r.periodMonth, r.periodYear)}</TableCell>
-                    <TableCell><StatusBadge status={r.status} /></TableCell>
-                    <TableCell>
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/approvals/${r.id}`}>View</Link>
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead className="hidden sm:table-cell">Report #</TableHead>
+                    <TableHead className="hidden sm:table-cell">Period</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Decided By</TableHead>
+                    <TableHead className="w-20" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {teamHistory.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.employee.name}</TableCell>
+                      <TableCell className="font-mono text-sm hidden sm:table-cell">{r.reportNumber}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{formatPeriod(r.periodMonth, r.periodYear)}</TableCell>
+                      <TableCell><StatusBadge status={r.status} /></TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
+                        {r.approvedBy?.name ?? r.rejectedBy?.name ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={`/approvals/${r.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

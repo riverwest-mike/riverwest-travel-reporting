@@ -6,26 +6,35 @@ import { EmployeesAdmin } from '@/components/admin/employees-admin'
 
 export default async function AdminEmployeesPage() {
   const employee = await requireEmployee()
-  if (employee.role !== Role.ADMIN) redirect('/reports')
+
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  if (!isAdminOrAO) redirect('/reports')
 
   const employees = await db.employee.findMany({
     include: {
-      manager: { select: { id: true, name: true } },
-      _count: { select: { expenseReports: true } },
+      approvers: {
+        include: { approver: { select: { id: true, name: true } } },
+      },
+      _count: { select: { canApproveFor: true, expenseReports: true } },
     },
     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
   })
 
-  const allEmployees = await db.employee.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
+  // All active managers/admins/AOs who can be assigned as approvers
+  const allManagers = await db.employee.findMany({
+    where: {
+      isActive: true,
+      role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] },
+    },
+    select: { id: true, name: true, role: true },
     orderBy: { name: 'asc' },
   })
 
   return (
     <EmployeesAdmin
       employees={employees as never}
-      allEmployees={allEmployees}
+      allManagers={allManagers}
+      isAO={employee.role === Role.APPLICATION_OWNER}
     />
   )
 }

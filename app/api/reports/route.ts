@@ -13,14 +13,14 @@ export async function GET(request: NextRequest) {
 
     let where: Record<string, unknown> = { deletedAt: null }
 
-    if (employee.role === Role.ADMIN) {
-      // Admin sees all reports, optionally filtered
+    if (employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER) {
+      // Admin/AO sees all reports, optionally filtered
       if (employeeId) where.employeeId = employeeId
     } else if (employee.role === Role.MANAGER) {
-      // Manager sees their own + their direct reports'
+      // Manager sees own reports + reports of employees they can approve
       where.OR = [
         { employeeId: employee.id },
-        { employee: { managerId: employee.id } },
+        { employee: { approvers: { some: { approverId: employee.id } } } },
       ]
       if (employeeId) where = { employeeId, deletedAt: null }
     } else {
@@ -54,7 +54,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'periodMonth and periodYear are required' }, { status: 400 })
     }
 
-    const mileageRate = parseFloat(process.env.MILEAGE_RATE ?? '0.70')
+    // Get the effective mileage rate from the MileageRate table
+    const today = new Date()
+    const rateRecord = await db.mileageRate.findFirst({
+      where: { effectiveDate: { lte: today } },
+      orderBy: { effectiveDate: 'desc' },
+    })
+    const mileageRate = rateRecord?.rate ?? parseFloat(process.env.MILEAGE_RATE ?? '0.70')
+
     const reportNumber = await generateReportNumber(Number(periodMonth), Number(periodYear))
 
     const report = await db.expenseReport.create({
