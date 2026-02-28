@@ -24,13 +24,11 @@ export default function SettingsPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/employees')
+    fetch('/api/employees/me')
       .then((r) => r.json())
-      .then((data: Employee[]) => {
-        if (data.length > 0) {
-          setEmployee(data[0])
-          setHomeAddress(data[0].homeAddress ?? DEFAULT_OFFICE_ADDRESS)
-        }
+      .then((data: Employee) => {
+        setEmployee(data)
+        setHomeAddress(data.homeAddress ?? DEFAULT_OFFICE_ADDRESS)
       })
       .catch(console.error)
   }, [])
