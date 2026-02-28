@@ -6,6 +6,39 @@ import { recalcReportTotals } from '@/lib/reports'
 import { calculateDistance, buildAddress } from '@/lib/mileage'
 import { DEFAULT_OFFICE_ADDRESS } from '@/lib/constants'
 
+function tripMatchesKey(
+  t: {
+    originType: string
+    originPropertyId: string | null
+    originAddress: string | null
+    destinationType: string
+    destinationPropertyId: string | null
+    destinationAddress: string | null
+  },
+  key: {
+    originType: string
+    originPropertyId?: string | null
+    originAddress?: string | null
+    destinationType: string
+    destinationPropertyId?: string | null
+    destinationAddress?: string | null
+  }
+) {
+  const sameOrigin =
+    t.originType === key.originType &&
+    (key.originType === 'PROPERTY'
+      ? t.originPropertyId === key.originPropertyId
+      : key.originType === 'HOME'
+      ? true
+      : t.originAddress === key.originAddress)
+  const sameDest =
+    t.destinationType === key.destinationType &&
+    (key.destinationType === 'PROPERTY'
+      ? t.destinationPropertyId === key.destinationPropertyId
+      : t.destinationAddress === key.destinationAddress)
+  return sameOrigin && sameDest
+}
+
 export async function POST(request: NextRequest) {
   try {
     const employee = await requireEmployee()
@@ -22,6 +55,7 @@ export async function POST(request: NextRequest) {
       destinationAddress,
       roundTrip,
       purpose,
+      confirmed,
     } = body
 
     if (!reportId || !date || !originType || !destinationType) {
@@ -41,34 +75,61 @@ export async function POST(request: NextRequest) {
     if (report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (report.status !== ReportStatus.DRAFT) {
-      return NextResponse.json({ error: 'Cannot add trips to a non-draft report' }, { status: 409 })
+    if (report.status !== ReportStatus.DRAFT && report.status !== ReportStatus.NEEDS_REVISION) {
+      return NextResponse.json({ error: 'Cannot add trips to a report in its current state' }, { status: 409 })
     }
 
-    // Duplicate trip check: same date + same origin + same destination on this report
-    const existingTrips = await db.trip.findMany({
+    const tripDateStr = tripDate.toDateString()
+    const tripKey = { originType, originPropertyId, originAddress, destinationType, destinationPropertyId, destinationAddress }
+
+    // Hard block: same date + same route on THIS report
+    const sameReportTrips = await db.trip.findMany({
       where: { reportId },
       select: { date: true, originType: true, originPropertyId: true, originAddress: true, destinationType: true, destinationPropertyId: true, destinationAddress: true },
     })
-    const tripDateStr = new Date(date).toDateString()
-    const isDuplicate = existingTrips.some(t => {
-      if (new Date(t.date).toDateString() !== tripDateStr) return false
-      const sameOrigin = t.originType === originType && (
-        originType === 'PROPERTY' ? t.originPropertyId === originPropertyId
-          : originType === 'HOME' ? true
-          : t.originAddress === originAddress
-      )
-      const sameDest = t.destinationType === destinationType && (
-        destinationType === 'PROPERTY' ? t.destinationPropertyId === destinationPropertyId
-          : t.destinationAddress === destinationAddress
-      )
-      return sameOrigin && sameDest
-    })
-    if (isDuplicate) {
+    const isDuplicateOnReport = sameReportTrips.some(
+      (t) => new Date(t.date).toDateString() === tripDateStr && tripMatchesKey(t, tripKey)
+    )
+    if (isDuplicateOnReport) {
       return NextResponse.json(
         { error: 'A trip with the same date, origin, and destination already exists on this report.' },
         { status: 409 }
       )
+    }
+
+    // Soft warning: same date + same route on OTHER reports for this employee (unless confirmed)
+    if (!confirmed) {
+      const otherReportTrips = await db.trip.findMany({
+        where: {
+          reportId: { not: reportId },
+          report: { employeeId: employee.id },
+          date: {
+            gte: new Date(tripDate.getFullYear(), tripDate.getMonth(), tripDate.getDate()),
+            lt: new Date(tripDate.getFullYear(), tripDate.getMonth(), tripDate.getDate() + 1),
+          },
+        },
+        select: {
+          originType: true,
+          originPropertyId: true,
+          originAddress: true,
+          destinationType: true,
+          destinationPropertyId: true,
+          destinationAddress: true,
+          report: { select: { reportNumber: true, id: true } },
+        },
+      })
+      const crossDuplicate = otherReportTrips.find((t) => tripMatchesKey(t, tripKey))
+      if (crossDuplicate) {
+        return NextResponse.json(
+          {
+            code: 'DUPLICATE_WARNING',
+            error: `This trip appears to already exist on report ${crossDuplicate.report.reportNumber}. Add it anyway?`,
+            conflictingReportNumber: crossDuplicate.report.reportNumber,
+            conflictingReportId: crossDuplicate.report.id,
+          },
+          { status: 409 }
+        )
+      }
     }
 
     // Resolve addresses

@@ -9,7 +9,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const report = await db.expenseReport.findUnique({
       where: { id: params.id },
       include: {
-        employee: { select: { id: true, name: true, email: true, homeAddress: true, managerId: true } },
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            homeAddress: true,
+            approvers: { select: { approverId: true } },
+          },
+        },
         trips: {
           include: {
             originProperty: true,
@@ -19,24 +27,18 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         },
         approvedBy: { select: { id: true, name: true } },
         rejectedBy: { select: { id: true, name: true } },
-        parentReport: { select: { id: true, reportNumber: true } },
       },
     })
 
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    // Access check
-    const canView =
-      employee.role === Role.ADMIN ||
-      report.employeeId === employee.id ||
-      (employee.role === Role.MANAGER && report.employee.managerId === employee.id) // checked via query
+    const isAdminOrAO =
+      employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+    const isOwner = report.employeeId === employee.id
+    const isApprover = report.employee.approvers.some((a) => a.approverId === employee.id)
 
-    if (!canView) {
-      // Re-check with manager relationship
-      const reportEmployee = await db.employee.findUnique({ where: { id: report.employeeId } })
-      if (reportEmployee?.managerId !== employee.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    if (!isAdminOrAO && !isOwner && !isApprover) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     return NextResponse.json(report)
@@ -51,10 +53,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const report = await db.expenseReport.findUnique({ where: { id: params.id } })
 
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (report.employeeId !== employee.id && employee.role !== Role.ADMIN) {
+
+    const isAdminOrAO =
+      employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+
+    if (report.employeeId !== employee.id && !isAdminOrAO) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (report.status !== ReportStatus.DRAFT && employee.role !== Role.ADMIN) {
+    if (report.status !== ReportStatus.DRAFT && !isAdminOrAO) {
       return NextResponse.json({ error: 'Only draft reports can be edited' }, { status: 409 })
     }
 
@@ -83,8 +89,11 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (report.deletedAt) return NextResponse.json({ error: 'Already deleted' }, { status: 410 })
 
-    if (employee.role === Role.ADMIN) {
-      // Admins soft-delete any report at any status with an optional reason
+    const isAdminOrAO =
+      employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+
+    if (isAdminOrAO) {
+      // Admins/AO soft-delete any report with an optional reason
       const body = await req.json().catch(() => ({}))
       const reason = typeof body.reason === 'string' ? body.reason.trim() : null
       await db.expenseReport.update({

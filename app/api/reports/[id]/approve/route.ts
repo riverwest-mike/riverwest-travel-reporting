@@ -9,16 +9,27 @@ import { tripLocationLabel } from '@/lib/reports'
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const manager = await requireEmployee()
+    const approver = await requireEmployee()
 
-    if (manager.role !== Role.MANAGER && manager.role !== Role.ADMIN) {
+    const isAdminOrAO =
+      approver.role === Role.ADMIN || approver.role === Role.APPLICATION_OWNER
+
+    if (
+      approver.role !== Role.MANAGER &&
+      approver.role !== Role.ADMIN &&
+      approver.role !== Role.APPLICATION_OWNER
+    ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const report = await db.expenseReport.findUnique({
       where: { id: params.id },
       include: {
-        employee: true,
+        employee: {
+          include: {
+            approvers: { select: { approverId: true } },
+          },
+        },
         trips: {
           include: { originProperty: true, destinationProperty: true },
           orderBy: { date: 'asc' },
@@ -32,33 +43,26 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'Only submitted reports can be approved' }, { status: 409 })
     }
 
-    // Verify manager relationship (admin can approve any)
-    if (manager.role !== Role.ADMIN) {
-      if (report.employee.managerId !== manager.id) {
-        return NextResponse.json({ error: 'Forbidden: not this employee\'s manager' }, { status: 403 })
+    // Verify approver relationship (admin/AO can approve any)
+    if (!isAdminOrAO) {
+      const isAllowedApprover = report.employee.approvers.some(
+        (a) => a.approverId === approver.id
+      )
+      if (!isAllowedApprover) {
+        return NextResponse.json(
+          { error: 'Forbidden: not an allowed approver for this employee' },
+          { status: 403 }
+        )
       }
     }
-
-    // Mark all pending/approved trips as APPROVED
-    await db.trip.updateMany({
-      where: { reportId: params.id, tripStatus: { not: 'REJECTED' } },
-      data: { tripStatus: 'APPROVED', tripApprovedById: manager.id },
-    })
 
     const updated = await db.expenseReport.update({
       where: { id: params.id },
       data: {
         status: ReportStatus.APPROVED,
         approvedAt: new Date(),
-        approvedById: manager.id,
+        approvedById: approver.id,
       },
-    })
-
-    // Re-fetch trips after status update to get final approved set
-    const approvedTrips = await db.trip.findMany({
-      where: { reportId: params.id, tripStatus: 'APPROVED' },
-      include: { originProperty: true, destinationProperty: true },
-      orderBy: { date: 'asc' },
     })
 
     // Generate accounting Excel and send (fire-and-forget)
@@ -68,18 +72,29 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         const dateApproved = new Date()
         const mileageRate = report.mileageRate
 
-        const tripRows: AccountingTripRow[] = approvedTrips.map((t) => {
+        const tripRows: AccountingTripRow[] = report.trips.map((t) => {
           const miles = t.roundTrip ? t.distance * 2 : t.distance
           return {
             employeeName: report.employee.name,
             dateApproved,
-            departureLocation: tripLocationLabel(t.originType, t.originProperty?.name, t.originAddress, t.originType === 'HOME'),
-            destinationLocation: tripLocationLabel(t.destinationType, t.destinationProperty?.name, t.destinationAddress, false),
+            departureLocation: tripLocationLabel(
+              t.originType,
+              t.originProperty?.name,
+              t.originAddress,
+              t.originType === 'HOME'
+            ),
+            destinationLocation: tripLocationLabel(
+              t.destinationType,
+              t.destinationProperty?.name,
+              t.destinationAddress,
+              false
+            ),
             businessPurpose: t.purpose ?? '',
             approvedMileage: miles,
             reimbursementTotal: Math.round(miles * mileageRate * 100) / 100,
-            managerName: manager.name,
+            managerName: approver.name,
             reportName: report.reportNumber,
+            mileageRate,
           }
         })
 
@@ -94,13 +109,12 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
           employeeName: report.employee.name,
           reportNumber: report.reportNumber,
           period,
-          managerEmail: manager.email,
-          managerName: manager.name,
+          managerEmail: approver.email,
+          managerName: approver.name,
           excelBuffer,
           fileName,
         })
 
-        // Log the export in the admin accounting log
         await db.accountingExportLog.create({
           data: {
             fileName,
@@ -109,7 +123,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
             totalMiles,
             totalAmount,
             employeeName: report.employee.name,
-            managerName: manager.name,
+            managerName: approver.name,
             reportNumber: report.reportNumber,
             expenseReportId: report.id,
           },

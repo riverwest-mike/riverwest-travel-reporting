@@ -9,7 +9,8 @@ import { Users, Building2, ClipboardList, CheckSquare, BarChart3, FileSpreadshee
 
 export default async function AdminDashboardPage() {
   const employee = await requireEmployee()
-  if (employee.role !== Role.ADMIN) redirect('/reports')
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  if (!isAdminOrAO) redirect('/reports')
 
   const [employees, properties, reports] = await Promise.all([
     db.employee.count({ where: { isActive: true } }),
@@ -53,11 +54,11 @@ export default async function AdminDashboardPage() {
           <CardTitle className="text-base">Report Status Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4">
-            {(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'] as const).map((s) => (
+          <div className="grid grid-cols-5 gap-4">
+            {(['DRAFT', 'SUBMITTED', 'APPROVED', 'NEEDS_REVISION', 'REJECTED'] as const).map((s) => (
               <div key={s} className="text-center p-3 rounded-lg bg-muted/30">
                 <p className="text-2xl font-bold text-navy-600">{statusCounts[s] ?? 0}</p>
-                <p className="text-xs text-muted-foreground mt-1 capitalize">{s.toLowerCase()}</p>
+                <p className="text-xs text-muted-foreground mt-1">{s === 'NEEDS_REVISION' ? 'Needs Revision' : s.charAt(0) + s.slice(1).toLowerCase()}</p>
               </div>
             ))}
           </div>

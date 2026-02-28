@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from '@/components/ui/dialog'
 import { Loader2, MapPin, ArrowRight, AlertTriangle, Star, Trash2 } from 'lucide-react'
 
 interface Property {
@@ -68,6 +71,8 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
   const [favorites, setFavorites] = useState<FavoriteTrip[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; conflictingReportNumber: string } | null>(null)
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null)
   const [showFavorites, setShowFavorites] = useState(false)
   const [savingFavorite, setSavingFavorite] = useState(false)
   const [showSaveFavorite, setShowSaveFavorite] = useState(false)
@@ -171,6 +176,34 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
 
   const isDuplicate = date && (originType === 'HOME' || originPropertyId || originAddress) && (destPropertyId || destAddress) && checkDuplicate()
 
+  async function submitPayload(payload: Record<string, unknown>) {
+    const url = isEdit ? `/api/trips/${editValues!.tripId}` : '/api/trips'
+    const method = isEdit ? 'PATCH' : 'POST'
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      // Cross-report duplicate warning — show confirmation dialog
+      if (data.code === 'DUPLICATE_WARNING') {
+        setPendingPayload(payload)
+        setDuplicateWarning({
+          message: data.error,
+          conflictingReportNumber: data.conflictingReportNumber,
+        })
+        return
+      }
+      throw new Error(data.error ?? (isEdit ? 'Failed to update trip' : 'Failed to add trip'))
+    }
+
+    onSuccess(data)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -190,21 +223,25 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
         purpose,
       }
 
-      const url = isEdit ? `/api/trips/${editValues!.tripId}` : '/api/trips'
-      const method = isEdit ? 'PATCH' : 'POST'
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? (isEdit ? 'Failed to update trip' : 'Failed to add trip'))
-      onSuccess(data)
+      await submitPayload(payload)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleConfirmDuplicate() {
+    if (!pendingPayload) return
+    setDuplicateWarning(null)
+    setLoading(true)
+    setError('')
+    try {
+      await submitPayload({ ...pendingPayload, confirmed: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setPendingPayload(null)
       setLoading(false)
     }
   }
@@ -375,6 +412,31 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
             : isEdit ? 'Save Changes' : 'Add Trip'}
         </Button>
       </div>
+
+      {/* Cross-report duplicate warning dialog */}
+      <Dialog open={Boolean(duplicateWarning)} onOpenChange={(open) => { if (!open) { setDuplicateWarning(null); setPendingPayload(null) } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="h-5 w-5" />
+              Possible Duplicate Trip
+            </DialogTitle>
+            <DialogDescription>
+              This trip appears to already exist on report{' '}
+              <strong>{duplicateWarning?.conflictingReportNumber}</strong>. Are you sure you want to add it again?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDuplicateWarning(null); setPendingPayload(null) }}>
+              Cancel
+            </Button>
+            <Button variant="warning" onClick={handleConfirmDuplicate} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Add Anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   )
 }

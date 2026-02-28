@@ -12,27 +12,35 @@ enum Role {
   EMPLOYEE
   MANAGER
   ADMIN
+  APPLICATION_OWNER
+}
+
+enum EmployeeStatus {
+  PENDING
+  ACTIVE
 }
 
 enum ReportStatus {
   DRAFT
   SUBMITTED
   APPROVED
-  REJECTED
+  REJECTED        // Legacy: kept for existing data
+  NEEDS_REVISION  // Replaces REJECTED for new send-backs
 }
 
 model Employee {
-  id          String  @id @default(cuid())
-  clerkUserId String? @unique
+  id          String         @id @default(cuid())
+  clerkUserId String?        @unique
   name        String
-  email       String  @unique
+  email       String         @unique
   homeAddress String?
-  role        Role    @default(EMPLOYEE)
-  managerId   String?
-  isActive    Boolean @default(true)
+  role        Role           @default(EMPLOYEE)
+  status      EmployeeStatus @default(ACTIVE)
+  isActive    Boolean        @default(true)
 
-  manager       Employee?  @relation("EmployeeManager", fields: [managerId], references: [id])
-  directReports Employee[] @relation("EmployeeManager")
+  // Approver relationships (replaces single managerId)
+  approvers     EmployeeApprover[] @relation("EmployeeApprovers")   // people who can approve MY reports
+  canApproveFor EmployeeApprover[] @relation("ApproverEmployees")   // employees whose reports I can approve
 
   expenseReports  ExpenseReport[] @relation("EmployeeReports")
   approvedReports ExpenseReport[] @relation("ApproverReports")
@@ -41,14 +49,39 @@ model Employee {
   approvedTrips   Trip[]          @relation("TripApprover")
   rejectedTrips   Trip[]          @relation("TripRejector")
   favoriteTrips   FavoriteTrip[]
+  mileageRates    MileageRate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+model EmployeeApprover {
+  id         String   @id @default(cuid())
+  employeeId String
+  approverId String
+  employee   Employee @relation("EmployeeApprovers", fields: [employeeId], references: [id])
+  approver   Employee @relation("ApproverEmployees", fields: [approverId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, approverId])
+  @@index([employeeId])
+  @@index([approverId])
+}
+
+model MileageRate {
+  id            String   @id @default(cuid())
+  rate          Float
+  effectiveDate DateTime
+  createdById   String
+  createdBy     Employee @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([effectiveDate])
+}
+
 model Property {
   id       String  @id @default(cuid())
-  name     String
+  name     String  @unique
   address  String
   city     String?
   state    String?
@@ -86,22 +119,23 @@ model FavoriteTrip {
 }
 
 model ExpenseReport {
-  id            String       @id @default(cuid())
-  reportNumber  String       @unique
-  employeeId    String
-  status        ReportStatus @default(DRAFT)
-  periodMonth   Int
-  periodYear    Int
-  totalMiles    Float        @default(0)
-  totalAmount   Float        @default(0)
-  mileageRate   Float        @default(0.70)
-  notes         String?
-  submittedAt   DateTime?
-  approvedAt    DateTime?
-  rejectedAt    DateTime?
+  id              String       @id @default(cuid())
+  reportNumber    String       @unique
+  employeeId      String
+  status          ReportStatus @default(DRAFT)
+  periodMonth     Int
+  periodYear      Int
+  totalMiles      Float        @default(0)
+  totalAmount     Float        @default(0)
+  mileageRate     Float        @default(0.70)
+  notes           String?
+  resubmitMessage String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
   rejectionReason String?
-  approvedById  String?
-  rejectedById  String?
+  approvedById    String?
+  rejectedById    String?
   parentReportId  String?
   deletedAt       DateTime?
   deletedById     String?
@@ -156,6 +190,7 @@ model Trip {
   purpose               String?
   tripStatus            String   @default("PENDING")
   tripRejectionReason   String?
+  managerNote           String?
   tripApprovedById      String?
   tripRejectedById      String?
 

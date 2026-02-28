@@ -34,7 +34,8 @@ export default async function AdminReportsPage({
   }
 }) {
   const employee = await requireEmployee()
-  if (employee.role !== Role.ADMIN) redirect('/reports')
+  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  if (!isAdminOrAO) redirect('/reports')
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1'))
   const currentYear = new Date().getFullYear()
@@ -45,7 +46,9 @@ export default async function AdminReportsPage({
   if (searchParams.employeeId) where.employeeId = searchParams.employeeId
   if (searchParams.year) where.periodYear = parseInt(searchParams.year)
   if (searchParams.month) where.periodMonth = parseInt(searchParams.month)
-  if (searchParams.managerId) where.employee = { managerId: searchParams.managerId }
+  if (searchParams.managerId) {
+    where.employee = { approvers: { some: { approverId: searchParams.managerId } } }
+  }
 
   const [allMatchingReports, employees, managers] = await Promise.all([
     db.expenseReport.findMany({
@@ -63,7 +66,7 @@ export default async function AdminReportsPage({
       orderBy: { name: 'asc' },
     }),
     db.employee.findMany({
-      where: { isActive: true, role: { in: [Role.MANAGER, Role.ADMIN] } },
+      where: { isActive: true, role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] } },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
@@ -131,7 +134,8 @@ export default async function AdminReportsPage({
               { value: 'DRAFT', label: 'Draft' },
               { value: 'SUBMITTED', label: 'Pending Review' },
               { value: 'APPROVED', label: 'Approved' },
-              { value: 'REJECTED', label: 'Rejected' },
+              { value: 'NEEDS_REVISION', label: 'Needs Revision' },
+              { value: 'REJECTED', label: 'Rejected (Legacy)' },
             ].map((opt) => (
               <FilterPill
                 key={opt.value}

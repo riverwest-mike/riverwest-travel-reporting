@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireEmployee, requireAdmin } from '@/lib/auth'
+import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { Role } from '@prisma/client'
+import { Role, EmployeeStatus } from '@prisma/client'
 
 export async function GET() {
   try {
     const employee = await requireEmployee()
-    const isAdmin = employee.role === Role.ADMIN
+    const isAdminOrAO =
+      employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
 
     const employees = await db.employee.findMany({
-      where: isAdmin ? {} : { id: employee.id },
+      where: isAdminOrAO ? {} : { id: employee.id },
       include: {
-        manager: { select: { id: true, name: true } },
-        _count: { select: { directReports: true, expenseReports: true } },
+        approvers: {
+          include: { approver: { select: { id: true, name: true } } },
+        },
+        _count: { select: { canApproveFor: true, expenseReports: true } },
       },
       orderBy: { name: 'asc' },
     })
@@ -25,12 +28,23 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin()
+    const me = await requireEmployee()
+    const isAdminOrAO =
+      me.role === Role.ADMIN || me.role === Role.APPLICATION_OWNER
+    if (!isAdminOrAO) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await request.json()
-    const { name, email, role, managerId, homeAddress } = body
+    const { name, email, role, homeAddress, status } = body
 
     if (!name || !email) {
       return NextResponse.json({ error: 'name and email are required' }, { status: 400 })
+    }
+
+    // Only APPLICATION_OWNER can assign APPLICATION_OWNER role
+    if (role === Role.APPLICATION_OWNER && me.role !== Role.APPLICATION_OWNER) {
+      return NextResponse.json({ error: 'Only the Application Owner can assign that role' }, { status: 403 })
     }
 
     const employee = await db.employee.create({
@@ -38,7 +52,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         role: (role as Role) ?? Role.EMPLOYEE,
-        managerId: managerId ?? null,
+        status: (status as EmployeeStatus) ?? EmployeeStatus.ACTIVE,
         homeAddress: homeAddress ?? '4215 Worth Ave, Columbus, OH 43219',
       },
     })
