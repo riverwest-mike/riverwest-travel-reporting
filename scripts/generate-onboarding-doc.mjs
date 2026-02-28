@@ -212,12 +212,20 @@ function coverPage() {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
+      spacing: { after: 240 },
       children: [new TextRun({
         text: `Effective: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
         color: GRAY, size: 22,
       })],
     }),
+    makeTable(
+      ['Role', 'Name', 'Email'],
+      [
+        ['Application Owner', 'Michael Pisano', 'mpisano@riverwestpartners.com'],
+      ],
+      [30, 35, 35]
+    ),
+    spacer(),
     br(),
   ]
 }
@@ -287,7 +295,7 @@ function section2() {
         ],
         [
           'Application Owner',
-          'The system administrator. There is typically one Application Owner.',
+          'The system administrator. Michael Pisano (mpisano@riverwestpartners.com) holds this role.',
           ['All Admin permissions', 'Set and manage mileage reimbursement rates', 'Activate and configure pending user accounts', 'Assign roles (including the Application Owner role)', 'View and permanently delete soft-deleted reports', 'Access all AO-only system settings'],
         ],
       ],
@@ -583,7 +591,7 @@ function section11() {
   return [
     h1('11. Environment & Configuration Reference'),
     hr(),
-    p('The following environment variables must be configured in Vercel (or .env.local for local development). Contact the Application Owner or a system administrator for the actual values.'),
+    p('The following environment variables must be configured in Vercel (or .env.local for local development). Contact the Application Owner, Michael Pisano (mpisano@riverwestpartners.com), for the actual values.'),
     spacer(),
     makeTable(
       ['Variable', 'Required', 'Description'],
@@ -610,7 +618,7 @@ function section11() {
     numbered('Deploy the application to Vercel with all environment variables set.'),
     numbered('Vercel runs prisma db push automatically during the build to apply the database schema.'),
     numbered('Seed the database by visiting: GET https://[app-url]/api/seed?secret=[SEED_SECRET]'),
-    numbered('Sign up with the Application Owner email (mpisano@riverwestpartners.com or as configured) and activate your own account via the database if needed for first-time setup.'),
+    numbered('Sign up with the Application Owner email — Michael Pisano (mpisano@riverwestpartners.com) — and activate the account via the database if needed for first-time setup.'),
     numbered('Go to Application Owner → Mileage Rates and add the current IRS standard mileage rate with today\'s effective date.'),
     br(),
   ]
@@ -653,7 +661,7 @@ function section13() {
     p('This was caused by a bug where the Settings page displayed the first employee alphabetically instead of the logged-in user. This has been resolved. If you still see incorrect data, clear your browser cache and sign out and back in.'),
     spacer(),
     h2('"I cannot see the Application Owner section in the sidebar."'),
-    p('Only employees with the Application Owner role see that sidebar section. If you should have this access, contact the current Application Owner to have your role updated under Admin → Employees.'),
+    p('Only employees with the Application Owner role see that sidebar section. If you should have this access, contact Michael Pisano (mpisano@riverwestpartners.com) to have your role updated.'),
     spacer(),
     h2('"My trip mileage looks wrong."'),
     p('Mileage is calculated using the Google Maps Distance Matrix API based on the driving distance between the selected addresses. Ensure the property addresses in the system are correct (Admin → Properties) and that your Primary Office address in Profile & Settings is accurate. If a Custom Address was used, double-check it was entered correctly.'),
@@ -662,7 +670,7 @@ function section13() {
     p('Check the following: (1) The approver is correctly assigned — an Admin can verify this in Admin → Employees. (2) The SMTP environment variables are correctly set in Vercel. (3) Check the approver\'s spam or junk folder. Email is sent from the address in SMTP_FROM.'),
     spacer(),
     h2('"I need to correct an approved report."'),
-    p('Approved reports are permanently locked as the integrity of the accounting record depends on immutability. Contact the Application Owner. If a correction is truly necessary, the report can be soft-deleted and a new report created for the corrected period.'),
+    p('Approved reports are permanently locked as the integrity of the accounting record depends on immutability. Contact Michael Pisano (mpisano@riverwestpartners.com). If a correction is truly necessary, he can soft-delete the report and a new report can be created for the corrected period.'),
     spacer(),
     h2('"The mileage rate needs to be updated for the new year."'),
     p('Log in as the Application Owner, go to Application Owner → Mileage Rates, click Add New Rate, enter the new $/mile rate, and set the effective date to January 1 of the new year (or the IRS-published effective date). No code change or redeployment is needed.'),
