@@ -7,8 +7,8 @@ import { EmployeesAdmin } from '@/components/admin/employees-admin'
 export default async function AdminEmployeesPage() {
   const employee = await requireEmployee()
 
-  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
-  if (!isAdminOrAO) redirect('/reports')
+  const isAdmin = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  if (!isAdmin) redirect('/reports')
 
   const employees = await db.employee.findMany({
     include: {
@@ -24,7 +24,7 @@ export default async function AdminEmployeesPage() {
   const allManagers = await db.employee.findMany({
     where: {
       isActive: true,
-      role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] },
+      role: { in: [Role.MANAGER, Role.ADMIN] },
     },
     select: { id: true, name: true, role: true },
     orderBy: { name: 'asc' },
@@ -34,7 +34,7 @@ export default async function AdminEmployeesPage() {
     <EmployeesAdmin
       employees={employees as never}
       allManagers={allManagers}
-      isAO={employee.role === Role.APPLICATION_OWNER}
+      isAO={false}
     />
   )
 }

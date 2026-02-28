@@ -3,12 +3,12 @@ import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
 
-// DELETE /api/mileage-rates/[id] — remove a rate (AO only)
+// DELETE /api/mileage-rates/[id] — remove a rate (admin only)
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const me = await requireEmployee()
-    if (me.role !== Role.APPLICATION_OWNER) {
-      return NextResponse.json({ error: 'Forbidden: Application Owner access required' }, { status: 403 })
+    if (me.role !== Role.ADMIN && me.role !== Role.APPLICATION_OWNER) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
     // Prevent deleting if it's the only rate

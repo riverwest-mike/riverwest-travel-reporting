@@ -9,7 +9,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const me = await requireEmployee()
     const body = await request.json()
 
-    const isAO = me.role === Role.APPLICATION_OWNER
     const isAdminOrAO = me.role === Role.ADMIN || me.role === Role.APPLICATION_OWNER
 
     if (isAdminOrAO) {
@@ -20,14 +19,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         // Nobody can change their own role
         if (params.id === me.id) {
           return NextResponse.json({ error: 'Cannot change your own role' }, { status: 403 })
-        }
-        // Only AO can assign AO or change FROM AO
-        if (role === Role.APPLICATION_OWNER && !isAO) {
-          return NextResponse.json({ error: 'Only the Application Owner can assign that role' }, { status: 403 })
-        }
-        const target = await db.employee.findUnique({ where: { id: params.id }, select: { role: true } })
-        if (target?.role === Role.APPLICATION_OWNER && !isAO) {
-          return NextResponse.json({ error: 'Only the Application Owner can change that role' }, { status: 403 })
         }
       }
 

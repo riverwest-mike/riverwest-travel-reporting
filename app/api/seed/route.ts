@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       data: { name: 'Frank Tice', email: 'ftice@riverwestpartners.com', role: Role.ADMIN },
     })
     const michael = await db.employee.create({
-      data: { name: 'Michael Pisano', email: 'mpisano@riverwestpartners.com', role: Role.APPLICATION_OWNER },
+      data: { name: 'Michael Pisano', email: 'mpisano@riverwestpartners.com', role: Role.ADMIN },
     })
     const kelly = await db.employee.create({
       data: { name: 'Kelly Meeder', email: 'kmeeder@riverwestpartners.com', role: Role.ADMIN },

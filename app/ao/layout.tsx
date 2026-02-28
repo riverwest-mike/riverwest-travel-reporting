@@ -14,9 +14,9 @@ export default async function AOLayout({ children }: { children: React.ReactNode
 
   if (employee.status === EmployeeStatus.PENDING) redirect('/pending')
 
-  // Only AO and Admin can access AO pages
-  const isAdminOrAO = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
-  if (!isAdminOrAO) redirect('/reports')
+  // Only Admin can access these pages
+  const isAdmin = employee.role === Role.ADMIN || employee.role === Role.APPLICATION_OWNER
+  if (!isAdmin) redirect('/reports')
 
   const pendingUsersCount = await db.employee.count({
     where: { status: EmployeeStatus.PENDING },

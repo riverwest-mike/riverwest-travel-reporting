@@ -40,25 +40,25 @@ export async function getEmployee() {
       },
     })
 
-    // Notify Application Owner(s) of new sign-up (fire-and-forget)
-    notifyAOOfNewSignup(employee.name, employee.email).catch(console.error)
+    // Notify Admin(s) of new sign-up (fire-and-forget)
+    notifyAdminsOfNewSignup(employee.name, employee.email).catch(console.error)
   }
 
   return employee
 }
 
-async function notifyAOOfNewSignup(name: string, email: string) {
+async function notifyAdminsOfNewSignup(name: string, email: string) {
   const { notifyApplicationOwnerOfNewUser } = await import('@/lib/email')
-  const owners = await db.employee.findMany({
-    where: { role: Role.APPLICATION_OWNER, isActive: true },
+  const admins = await db.employee.findMany({
+    where: { role: { in: [Role.ADMIN, Role.APPLICATION_OWNER] }, isActive: true },
     select: { email: true, name: true },
   })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   await Promise.all(
-    owners.map((owner) =>
+    admins.map((admin) =>
       notifyApplicationOwnerOfNewUser({
-        ownerEmail: owner.email,
-        ownerName: owner.name,
+        ownerEmail: admin.email,
+        ownerName: admin.name,
         newUserName: name,
         newUserEmail: email,
         pendingUsersUrl: `${appUrl}/ao/pending-users`,
@@ -99,22 +99,10 @@ export async function requireAdmin() {
   return employee
 }
 
-export async function requireApplicationOwner() {
-  const employee = await requireActiveEmployee()
-  if (employee.role !== Role.APPLICATION_OWNER) {
-    throw new Error('Forbidden: Application Owner access required')
-  }
-  return employee
-}
-
 export function isManager(role: Role) {
   return role === Role.MANAGER || role === Role.ADMIN || role === Role.APPLICATION_OWNER
 }
 
 export function isAdmin(role: Role) {
   return role === Role.ADMIN || role === Role.APPLICATION_OWNER
-}
-
-export function isApplicationOwner(role: Role) {
-  return role === Role.APPLICATION_OWNER
 }

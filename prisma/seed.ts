@@ -83,14 +83,14 @@ async function main() {
 
   // ── Employees ─────────────────────────────────────────────────────────────
 
-  // Mike Pisano — APPLICATION_OWNER
+  // Mike Pisano — ADMIN
   const mikePisano = await prisma.employee.upsert({
     where: { email: 'mpisano@riverwestpartners.com' },
-    update: { role: Role.APPLICATION_OWNER, status: EmployeeStatus.ACTIVE },
+    update: { role: Role.ADMIN, status: EmployeeStatus.ACTIVE },
     create: {
       name: 'Mike Pisano',
       email: 'mpisano@riverwestpartners.com',
-      role: Role.APPLICATION_OWNER,
+      role: Role.ADMIN,
       status: EmployeeStatus.ACTIVE,
       homeAddress: '',
     },
@@ -181,7 +181,7 @@ async function main() {
   }
 
   console.log('\nEmployee accounts seeded:')
-  console.log(`  mpisano@riverwestpartners.com  (APPLICATION_OWNER)`)
+  console.log(`  mpisano@riverwestpartners.com  (ADMIN)`)
   console.log(`  dan@riverwestpartners.com      (ADMIN / approver for team)`)
   console.log(`  laura@riverwestpartners.com    (EMPLOYEE, approved by Dan)`)
   console.log(`  mike@riverwestpartners.com     (EMPLOYEE, approved by Dan)`)

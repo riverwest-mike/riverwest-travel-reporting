@@ -3,12 +3,12 @@ import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
 
-// GET /api/admin/deleted-reports — list soft-deleted reports (AO only)
+// GET /api/admin/deleted-reports — list soft-deleted reports (admin only)
 export async function GET() {
   try {
     const me = await requireEmployee()
-    if (me.role !== Role.APPLICATION_OWNER) {
-      return NextResponse.json({ error: 'Forbidden: Application Owner access required' }, { status: 403 })
+    if (me.role !== Role.ADMIN && me.role !== Role.APPLICATION_OWNER) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
     const reports = await db.expenseReport.findMany({

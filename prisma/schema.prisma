@@ -12,7 +12,7 @@ enum Role {
   EMPLOYEE
   MANAGER
   ADMIN
-  APPLICATION_OWNER
+  APPLICATION_OWNER // deprecated — treated as ADMIN; retained for existing records only
 }
 
 enum EmployeeStatus {

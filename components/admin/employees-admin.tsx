@@ -38,14 +38,12 @@ interface Props {
 }
 
 function roleBadgeVariant(role: string) {
-  if (role === 'APPLICATION_OWNER') return 'default'
   if (role === 'ADMIN') return 'default'
   if (role === 'MANAGER') return 'info'
   return 'secondary'
 }
 
 function roleLabel(role: string) {
-  if (role === 'APPLICATION_OWNER') return 'App Owner'
   return role.charAt(0) + role.slice(1).toLowerCase()
 }
 
@@ -67,7 +65,6 @@ export function EmployeesAdmin({ employees: initial, allManagers, isAO }: Props)
     { value: 'EMPLOYEE', label: 'Employee' },
     { value: 'MANAGER', label: 'Manager' },
     { value: 'ADMIN', label: 'Admin' },
-    ...(isAO ? [{ value: 'APPLICATION_OWNER', label: 'Application Owner' }] : []),
   ]
 
   function openCreate() {
