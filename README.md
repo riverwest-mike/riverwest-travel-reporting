@@ -7,9 +7,9 @@ A web application for RiverWest employees to submit mileage reimbursement and tr
 ## What It Does
 
 - **Employees** log trips (origin, destination, properties visited) and submit expense reports for mileage reimbursement
-- **Managers** review and approve or reject submitted reports
+- **Managers** review submitted reports, optionally annotate individual trips with notes, then approve or send back for revision
 - **Admins** manage employees, properties, and view all reports across the organization
-- Approved reports are automatically emailed to the accounting team
+- Approved reports are automatically emailed to the accounting team as an Excel workbook
 - Mileage is calculated automatically using Google Maps and reimbursed at the current IRS rate
 
 ---
@@ -19,8 +19,32 @@ A web application for RiverWest employees to submit mileage reimbursement and tr
 | Role | Access |
 |------|--------|
 | **Employee** | Submit trips and expense reports, view own history |
-| **Manager** | All employee access + approve/reject reports for their direct reports |
+| **Manager** | All employee access + approve or send back reports for their direct reports |
 | **Admin** | Full access — manage employees, properties, view all reports, export data |
+
+---
+
+## Approval Workflow
+
+Reports move through the following statuses:
+
+| Status | Meaning |
+|--------|---------|
+| **Draft** | Employee is building the report (trips editable) |
+| **Pending Review** | Submitted to manager for approval |
+| **Approved** | Manager approved — Excel sent to accounting, report locked |
+| **Needs Revision** | Manager sent back for edits (trips editable again) |
+
+### Manager review
+1. Open a pending report from the **Approvals** queue
+2. Optionally click **Add Note** on any trip to flag specific issues
+3. Click **Approve Report** to approve the whole report — the accounting Excel is emailed automatically
+4. Or click **Send Back for Revision** — enter an overall explanation (required); per-trip notes are included automatically
+
+### Employee revision
+1. The report shows an amber banner with the manager's overall note and any per-trip annotations
+2. Edit, add, or delete trips as needed
+3. Click **Resubmit for Approval** — the same report is resubmitted (no new report number created)
 
 ---
 
