@@ -30,7 +30,7 @@ export default async function ApprovalsPage() {
 
   const recentlyDecided = await db.expenseReport.findMany({
     where: {
-      status: { in: [ReportStatus.APPROVED, ReportStatus.REJECTED] },
+      status: { in: [ReportStatus.APPROVED, ReportStatus.NEEDS_REVISION, ReportStatus.REJECTED] },
       OR: [
         { approvedById: employee.id },
         { rejectedById: employee.id },

@@ -17,7 +17,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     if (report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (report.status !== ReportStatus.DRAFT && report.status !== ReportStatus.REJECTED) {
+    if (report.status !== ReportStatus.DRAFT && report.status !== ReportStatus.REJECTED && report.status !== ReportStatus.NEEDS_REVISION) {
       return NextResponse.json({ error: 'Report cannot be submitted in its current state' }, { status: 409 })
     }
     if (report.trips.length === 0) {

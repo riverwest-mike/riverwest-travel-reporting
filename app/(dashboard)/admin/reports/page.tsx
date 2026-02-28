@@ -131,7 +131,8 @@ export default async function AdminReportsPage({
               { value: 'DRAFT', label: 'Draft' },
               { value: 'SUBMITTED', label: 'Pending Review' },
               { value: 'APPROVED', label: 'Approved' },
-              { value: 'REJECTED', label: 'Rejected' },
+              { value: 'NEEDS_REVISION', label: 'Needs Revision' },
+              { value: 'REJECTED', label: 'Rejected (Legacy)' },
             ].map((opt) => (
               <FilterPill
                 key={opt.value}

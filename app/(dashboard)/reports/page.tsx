@@ -30,7 +30,6 @@ export default async function ReportsPage({
       totalMiles: true,
       totalAmount: true,
       approvedAt: true,
-      parentReportId: true,
       _count: { select: { trips: true } },
     },
     orderBy: [{ periodYear: 'desc' }, { periodMonth: 'desc' }],
@@ -55,20 +54,10 @@ export default async function ReportsPage({
       .sort((a, b) => new Date(b.approvedAt!).getTime() - new Date(a.approvedAt!).getTime())[0] ?? null,
   }
 
-  // Rejected reports that already have an active child (DRAFT or SUBMITTED) are locked —
-  // the employee already resubmitted and the manager hasn't acted yet.
-  const activeChildParentIds = new Set(
-    allReports
-      .filter(r => r.parentReportId && (r.status === 'DRAFT' || r.status === 'SUBMITTED'))
-      .map(r => r.parentReportId!)
-  )
-
   // Reports that need the employee's action
-  const actionNeeded = allReports.filter(r => {
-    if (r.status === 'DRAFT') return true
-    if (r.status === 'REJECTED') return !activeChildParentIds.has(r.id)
-    return false
-  })
+  const actionNeeded = allReports.filter(r =>
+    r.status === 'DRAFT' || r.status === 'NEEDS_REVISION' || r.status === 'REJECTED'
+  )
 
   // Paginate the full report list
   const total = allReports.length
@@ -160,7 +149,7 @@ export default async function ReportsPage({
                     <span>{r._count.trips} trip{r._count.trips !== 1 ? 's' : ''}</span>
                     <Button asChild variant="outline" size="sm">
                       <Link href={`/reports/${r.id}`}>
-                        {r.status === 'REJECTED'
+                        {r.status === 'NEEDS_REVISION' || r.status === 'REJECTED'
                           ? <><RefreshCw className="h-3.5 w-3.5" /> Review &amp; Resubmit</>
                           : <><Pencil className="h-3.5 w-3.5" /> Edit &amp; Submit</>
                         }

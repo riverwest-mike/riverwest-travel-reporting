@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     if (report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (report.status !== ReportStatus.DRAFT) {
-      return NextResponse.json({ error: 'Cannot add trips to a non-draft report' }, { status: 409 })
+    if (report.status !== ReportStatus.DRAFT && report.status !== ReportStatus.NEEDS_REVISION) {
+      return NextResponse.json({ error: 'Cannot add trips to a report in its current state' }, { status: 409 })
     }
 
     // Duplicate trip check: same date + same origin + same destination on this report

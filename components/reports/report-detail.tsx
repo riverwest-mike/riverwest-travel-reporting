@@ -27,7 +27,7 @@ interface Trip {
   originProperty: Property | null; originAddress: string | null; originPropertyId?: string | null
   destinationType: string; destinationProperty: Property | null; destinationAddress: string | null; destinationPropertyId?: string | null
   roundTrip: boolean; distance: number; purpose: string | null
-  tripStatus: string; tripRejectionReason: string | null
+  tripStatus: string; tripRejectionReason: string | null; managerNote: string | null
 }
 interface ReportData {
   id: string; reportNumber: string; status: ReportStatus; periodMonth: number; periodYear: number
@@ -38,7 +38,6 @@ interface ReportData {
   trips: Trip[]
   approvedBy: { id: string; name: string } | null
   rejectedBy: { id: string; name: string } | null
-  parentReport: { id: string; reportNumber: string } | null
 }
 
 interface Props {
@@ -74,15 +73,16 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
   const [error, setError] = useState('')
 
   const isDraft = report.status === ReportStatus.DRAFT
-  const isRejected = report.status === ReportStatus.REJECTED
+  const isNeedsRevision = report.status === ReportStatus.NEEDS_REVISION || report.status === ReportStatus.REJECTED
+  const isApproved = report.status === ReportStatus.APPROVED
   const isAdmin = currentEmployee.role === Role.ADMIN
-  const canEdit = isOwner && isDraft
+  const canEdit = isOwner && (isDraft || isNeedsRevision)
   const canSubmit = isOwner && isDraft && report.trips.length > 0
-  const canResubmit = isOwner && isRejected
+  const canResubmit = isOwner && isNeedsRevision && report.trips.length > 0
 
-  // Trips carried over from a rejection that need the employee's attention
-  const needsAttentionTrips = isDraft
-    ? report.trips.filter((t) => t.tripStatus === 'PENDING' && t.tripRejectionReason)
+  // Trips with manager notes (shown when report needs revision)
+  const annotatedTrips = isNeedsRevision
+    ? report.trips.filter((t) => t.managerNote)
     : []
 
   // Admin delete state
@@ -151,10 +151,12 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
     try {
       const res = await fetch(`/api/reports/${report.id}/resubmit`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create resubmission')
-      router.push(`/reports/${data.id}`)
+      if (!res.ok) throw new Error(data.error ?? 'Failed to resubmit')
+      // Same report, now SUBMITTED — refresh to clear manager notes
+      await refreshReport()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error')
+    } finally {
       setActionLoading(false)
     }
   }
@@ -176,7 +178,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
     setEditingTrip(trip)
   }
 
-  const showTripStatuses = report.status !== ReportStatus.DRAFT
+  const showTripStatuses = false // Per-trip statuses are no longer used in the approval flow
 
   return (
     <div className="space-y-6">
@@ -193,14 +195,6 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
             </div>
             <p className="text-muted-foreground text-sm mt-0.5">
               {formatPeriod(report.periodMonth, report.periodYear)}
-              {report.parentReport && (
-                <span className="ml-2 text-amber-600">
-                  · Resubmission of{' '}
-                  <Link href={`/reports/${report.parentReport.id}`} className="underline">
-                    {report.parentReport.reportNumber}
-                  </Link>
-                </span>
-              )}
             </p>
           </div>
         </div>
@@ -215,10 +209,10 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
           {canResubmit && (
             <Button onClick={handleResubmit} disabled={actionLoading} variant="warning">
               {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Resubmit
+              Resubmit for Approval
             </Button>
           )}
-          {canEdit && report.trips.length === 0 && (
+          {isDraft && isOwner && report.trips.length === 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -250,32 +244,30 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
         </div>
       )}
 
-      {/* Previously-rejected trips warning (resubmission draft) */}
-      {needsAttentionTrips.length > 0 && (
-        <div className="border border-amber-300 bg-amber-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-amber-700 font-medium mb-1">
+      {/* Needs revision banner */}
+      {isNeedsRevision && (
+        <div className="border border-amber-300 bg-amber-50 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2 text-amber-700 font-medium">
             <AlertTriangle className="h-4 w-4" />
-            {needsAttentionTrips.length} trip{needsAttentionTrips.length > 1 ? 's' : ''} need{needsAttentionTrips.length === 1 ? 's' : ''} your attention
-          </div>
-          <p className="text-sm text-amber-700">
-            The highlighted trips below were rejected in the previous report. Review the rejection reasons, then edit or delete them before submitting.
-          </p>
-        </div>
-      )}
-
-      {/* Rejection notice */}
-      {report.status === ReportStatus.REJECTED && (
-        <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-destructive font-medium mb-1">
-            <XCircle className="h-4 w-4" />
-            Sent back by {report.rejectedBy?.name ?? 'Manager'}
+            Sent back for revision by {report.rejectedBy?.name ?? 'Manager'}
           </div>
           {report.rejectionReason && (
-            <p className="text-sm text-muted-foreground whitespace-pre-line">{report.rejectionReason}</p>
+            <p className="text-sm text-amber-800 whitespace-pre-line">{report.rejectionReason}</p>
+          )}
+          {annotatedTrips.length > 0 && (
+            <div className="space-y-1 pt-1">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Per-trip notes</p>
+              {annotatedTrips.map(t => (
+                <p key={t.id} className="text-xs text-amber-800">
+                  <span className="font-medium">{formatDate(t.date)} · {tripLabel(t.originType, t.originProperty, t.originAddress)} → {tripLabel(t.destinationType, t.destinationProperty, t.destinationAddress)}:</span>{' '}
+                  {t.managerNote}
+                </p>
+              ))}
+            </div>
           )}
           {isOwner && (
-            <p className="text-sm mt-2 text-navy-600 font-medium">
-              Click &ldquo;Resubmit&rdquo; above to create a corrected draft with all trips included for editing.
+            <p className="text-sm text-amber-700 font-medium pt-1">
+              Edit your trips below, then click &ldquo;Resubmit for Approval&rdquo; when ready.
             </p>
           )}
         </div>
@@ -381,19 +373,11 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
               </TableHeader>
               <TableBody>
                 {report.trips.map((trip) => {
-                  const needsAttention = isDraft && trip.tripStatus === 'PENDING' && Boolean(trip.tripRejectionReason)
+                  const hasManagerNote = isNeedsRevision && Boolean(trip.managerNote)
                   const isEditingThis = editingTrip?.id === trip.id
                   return (
                     <Fragment key={trip.id}>
-                      <TableRow
-                        className={
-                          trip.tripStatus === 'REJECTED'
-                            ? 'bg-red-50/50'
-                            : needsAttention
-                            ? 'bg-amber-50/60'
-                            : undefined
-                        }
-                      >
+                      <TableRow className={hasManagerNote ? 'bg-amber-50/60' : undefined}>
                         <TableCell className="text-sm">{formatDate(trip.date)}</TableCell>
                         <TableCell className="text-sm">
                           {tripLabel(trip.originType, trip.originProperty, trip.originAddress)}
@@ -443,25 +427,13 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                         )}
                       </TableRow>
 
-                      {/* Rejection reason row (non-draft reports) */}
-                      {showTripStatuses && trip.tripStatus === 'REJECTED' && trip.tripRejectionReason && (
-                        <TableRow className="bg-red-50/50">
-                          <TableCell colSpan={canEdit ? 9 : 8} className="py-1 pb-2">
-                            <p className="text-xs text-destructive flex items-start gap-1.5 pl-1">
-                              <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                              <span><strong>Rejection reason:</strong> {trip.tripRejectionReason}</span>
-                            </p>
-                          </TableCell>
-                        </TableRow>
-                      )}
-
-                      {/* Warning row for previously-rejected trips in draft */}
-                      {needsAttention && (
+                      {/* Manager note sub-row */}
+                      {hasManagerNote && (
                         <TableRow className="bg-amber-50/60">
                           <TableCell colSpan={canEdit ? 9 : 8} className="py-1 pb-2">
-                            <p className="text-xs text-amber-700 flex items-start gap-1.5 pl-1">
+                            <p className="text-xs text-amber-800 flex items-start gap-1.5 pl-1">
                               <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                              <span><strong>Previously rejected:</strong> {trip.tripRejectionReason} — edit or delete this trip before submitting.</span>
+                              <span><strong>Manager note:</strong> {trip.managerNote}</span>
                             </p>
                           </TableCell>
                         </TableRow>

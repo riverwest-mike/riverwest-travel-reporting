@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { ReportStatus, Role } from '@prisma/client'
-import { generateAccountingExcel, AccountingTripRow } from '@/lib/excel'
-import { sendReportToAccounting, notifyEmployeeOfDecision } from '@/lib/email'
+import { notifyEmployeeOfDecision } from '@/lib/email'
 import { formatPeriod } from '@/lib/utils'
-import { tripLocationLabel } from '@/lib/reports'
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -16,7 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const body = await request.json()
-    const { reason } = body
+    const { reason, tripNotes } = body
 
     if (!reason?.trim()) {
       return NextResponse.json({ error: 'A rejection reason is required' }, { status: 400 })
@@ -24,100 +22,45 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const report = await db.expenseReport.findUnique({
       where: { id: params.id },
-      include: {
-        employee: true,
-        trips: {
-          include: { originProperty: true, destinationProperty: true },
-          orderBy: { date: 'asc' },
-        },
-      },
+      include: { employee: true },
     })
 
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (report.status !== ReportStatus.SUBMITTED) {
-      return NextResponse.json({ error: 'Only submitted reports can be rejected' }, { status: 409 })
+      return NextResponse.json({ error: 'Only submitted reports can be sent back' }, { status: 409 })
     }
 
     if (manager.role !== Role.ADMIN && report.employee.managerId !== manager.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Mark any still-pending trips as rejected with the same reason
+    // Clear all existing manager notes on trips
     await db.trip.updateMany({
-      where: { reportId: params.id, tripStatus: 'PENDING' },
-      data: { tripStatus: 'REJECTED', tripRejectionReason: reason.trim(), tripRejectedById: manager.id },
+      where: { reportId: params.id },
+      data: { managerNote: null },
     })
+
+    // Set per-trip notes if provided
+    if (Array.isArray(tripNotes)) {
+      for (const tn of tripNotes as { tripId: string; note: string }[]) {
+        if (tn.tripId && tn.note?.trim()) {
+          await db.trip.update({
+            where: { id: tn.tripId },
+            data: { managerNote: tn.note.trim() },
+          })
+        }
+      }
+    }
 
     const updated = await db.expenseReport.update({
       where: { id: params.id },
       data: {
-        status: ReportStatus.REJECTED,
+        status: ReportStatus.NEEDS_REVISION,
         rejectedAt: new Date(),
         rejectedById: manager.id,
         rejectionReason: reason.trim(),
       },
     })
-
-    // If any trips were individually approved before rejection, send those to accounting
-    const alreadyApprovedTrips = report.trips.filter((t) => t.tripStatus === 'APPROVED')
-
-    if (alreadyApprovedTrips.length > 0) {
-      ;(async () => {
-        try {
-          const period = formatPeriod(report.periodMonth, report.periodYear)
-          const dateApproved = new Date()
-          const mileageRate = report.mileageRate
-
-          const tripRows: AccountingTripRow[] = alreadyApprovedTrips.map((t) => {
-            const miles = t.roundTrip ? t.distance * 2 : t.distance
-            return {
-              employeeName: report.employee.name,
-              dateApproved,
-              departureLocation: tripLocationLabel(t.originType, t.originProperty?.name, t.originAddress, t.originType === 'HOME'),
-              destinationLocation: tripLocationLabel(t.destinationType, t.destinationProperty?.name, t.destinationAddress, false),
-              businessPurpose: t.purpose ?? '',
-              approvedMileage: miles,
-              reimbursementTotal: Math.round(miles * mileageRate * 100) / 100,
-              managerName: manager.name,
-              reportName: report.reportNumber,
-            }
-          })
-
-          const totalMiles = tripRows.reduce((s, t) => s + t.approvedMileage, 0)
-          const totalAmount = Math.round(totalMiles * mileageRate * 100) / 100
-
-          const excelBuffer = await generateAccountingExcel(tripRows)
-          const fileName = `Accounting_${report.reportNumber}_${report.employee.name.replace(/\s+/g, '_')}_partial.xlsx`
-          const accountingEmail = process.env.ACCOUNTING_EMAIL ?? 'controller@riverwestpartners.com'
-
-          await sendReportToAccounting({
-            employeeName: report.employee.name,
-            reportNumber: report.reportNumber,
-            period,
-            managerEmail: manager.email,
-            managerName: manager.name,
-            excelBuffer,
-            fileName,
-          })
-
-          await db.accountingExportLog.create({
-            data: {
-              fileName,
-              sentToEmail: accountingEmail,
-              tripCount: tripRows.length,
-              totalMiles,
-              totalAmount,
-              employeeName: report.employee.name,
-              managerName: manager.name,
-              reportNumber: report.reportNumber,
-              expenseReportId: report.id,
-            },
-          })
-        } catch (err) {
-          console.error('Partial accounting export error:', err)
-        }
-      })()
-    }
 
     // Notify employee (fire-and-forget)
     notifyEmployeeOfDecision({

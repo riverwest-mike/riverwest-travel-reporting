@@ -18,8 +18,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (trip.report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (trip.report.status !== ReportStatus.DRAFT) {
-      return NextResponse.json({ error: 'Cannot edit trips on a non-draft report' }, { status: 409 })
+    if (trip.report.status !== ReportStatus.DRAFT && trip.report.status !== ReportStatus.NEEDS_REVISION) {
+      return NextResponse.json({ error: 'Cannot edit trips on a report in its current state' }, { status: 409 })
     }
 
     const body = await request.json()
@@ -108,8 +108,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     if (trip.report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (trip.report.status !== ReportStatus.DRAFT) {
-      return NextResponse.json({ error: 'Cannot delete trips from a non-draft report' }, { status: 409 })
+    if (trip.report.status !== ReportStatus.DRAFT && trip.report.status !== ReportStatus.NEEDS_REVISION) {
+      return NextResponse.json({ error: 'Cannot delete trips from a report in its current state' }, { status: 409 })
     }
 
     await db.trip.delete({ where: { id: params.id } })

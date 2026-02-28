@@ -24,22 +24,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     })
   }
 
-  // Employee notification: DRAFT + REJECTED reports that need action (excluding locked resubmissions)
-  let employeeActionCount = 0
-  const myReports = await db.expenseReport.findMany({
-    where: { employeeId: employee.id, deletedAt: null },
-    select: { id: true, status: true, parentReportId: true },
+  // Employee notification: DRAFT + NEEDS_REVISION (+ legacy REJECTED) reports that need action
+  const employeeActionCount = await db.expenseReport.count({
+    where: {
+      employeeId: employee.id,
+      deletedAt: null,
+      status: { in: ['DRAFT', 'NEEDS_REVISION', 'REJECTED'] },
+    },
   })
-  const activeChildParentIds = new Set(
-    myReports
-      .filter(r => r.parentReportId && (r.status === 'DRAFT' || r.status === 'SUBMITTED'))
-      .map(r => r.parentReportId!)
-  )
-  employeeActionCount = myReports.filter(r => {
-    if (r.status === 'DRAFT') return true
-    if (r.status === 'REJECTED') return !activeChildParentIds.has(r.id)
-    return false
-  }).length
 
   return (
     <div className="flex min-h-screen">

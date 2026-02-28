@@ -18,7 +18,8 @@ enum ReportStatus {
   DRAFT
   SUBMITTED
   APPROVED
-  REJECTED
+  REJECTED        // Legacy: kept for existing data
+  NEEDS_REVISION  // Replaces REJECTED for new send-backs
 }
 
 model Employee {
@@ -156,6 +157,7 @@ model Trip {
   purpose               String?
   tripStatus            String   @default("PENDING")
   tripRejectionReason   String?
+  managerNote           String?
   tripApprovedById      String?
   tripRejectedById      String?
 

@@ -22,7 +22,6 @@ export default async function ReportPage({ params }: { params: { id: string } })
       },
       approvedBy: { select: { id: true, name: true } },
       rejectedBy: { select: { id: true, name: true } },
-      parentReport: { select: { id: true, reportNumber: true } },
     },
   })
 

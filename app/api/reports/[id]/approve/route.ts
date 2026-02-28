@@ -39,12 +39,6 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    // Mark all pending/approved trips as APPROVED
-    await db.trip.updateMany({
-      where: { reportId: params.id, tripStatus: { not: 'REJECTED' } },
-      data: { tripStatus: 'APPROVED', tripApprovedById: manager.id },
-    })
-
     const updated = await db.expenseReport.update({
       where: { id: params.id },
       data: {
@@ -54,9 +48,9 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       },
     })
 
-    // Re-fetch trips after status update to get final approved set
+    // Re-fetch all trips for the accounting export
     const approvedTrips = await db.trip.findMany({
-      where: { reportId: params.id, tripStatus: 'APPROVED' },
+      where: { reportId: params.id },
       include: { originProperty: true, destinationProperty: true },
       orderBy: { date: 'asc' },
     })
