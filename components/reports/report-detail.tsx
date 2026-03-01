@@ -75,7 +75,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
   const isDraft = report.status === ReportStatus.DRAFT
   const isNeedsRevision = report.status === ReportStatus.NEEDS_REVISION || report.status === ReportStatus.REJECTED
   const isApproved = report.status === ReportStatus.APPROVED
-  const isAdmin = currentEmployee.role === Role.ADMIN
+  const isAdmin = currentEmployee.role === Role.ADMIN || currentEmployee.role === Role.APPLICATION_OWNER
   const canEdit = isOwner && (isDraft || isNeedsRevision)
   const canSubmit = isOwner && isDraft && report.trips.length > 0
   const canResubmit = isOwner && isNeedsRevision && report.trips.length > 0
@@ -173,7 +173,10 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
     setActionLoading(true)
     try {
       const res = await fetch(`/api/reports/${report.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'Failed to delete report')
+      }
       router.push('/reports')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error')
