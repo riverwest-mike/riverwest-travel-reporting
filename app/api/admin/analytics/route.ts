@@ -6,7 +6,7 @@ import { Role } from '@prisma/client'
 export async function GET(request: NextRequest) {
   try {
     const employee = await requireEmployee()
-    if (employee.role !== Role.ADMIN) {
+    if (employee.role !== Role.ADMIN && employee.role !== Role.APPLICATION_OWNER) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
     const yearStr = searchParams.get('year')
     const year = yearStr ? parseInt(yearStr) : undefined
 
-    // Build filter for approved trips on approved reports
+    // Build filter for trips on approved reports
     const tripWhere: Record<string, unknown> = {
-      tripStatus: 'APPROVED',
       report: {
         status: 'APPROVED',
+        deletedAt: null,
         ...(employeeId && { employeeId }),
         ...(year && { periodYear: year }),
       },
