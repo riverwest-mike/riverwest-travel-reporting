@@ -1,6 +1,6 @@
 # RiverWest Travel & Mileage Reporting
 
-A web application for RiverWest employees to submit mileage reimbursement and travel expense reports, with multi-approver workflows, automated email notifications, and accounting export.
+A web application for RiverWest employees to submit mileage reimbursement and travel expense reports, with multi-approver workflows, automated email notifications, accounting export, and organization-wide analytics.
 
 ---
 
@@ -8,8 +8,7 @@ A web application for RiverWest employees to submit mileage reimbursement and tr
 
 - **Employees** log trips (origin, destination, properties visited) and submit expense reports for mileage reimbursement
 - **Managers** review submitted reports, optionally annotate individual trips with notes, then approve or send back for revision
-- **Admins** manage employees, properties, and view all reports across the organization
-- **Application Owner** manages mileage rates, activates new user accounts, and can permanently delete soft-deleted reports
+- **Admins** manage employees, properties, mileage rates, and pending user activations — and have full access to organization-wide analytics
 - Approved reports are automatically emailed to the accounting team as an Excel workbook
 - Mileage is calculated automatically using Google Maps and reimbursed at the current rate (managed in-app, no env variable needed)
 
@@ -21,10 +20,11 @@ A web application for RiverWest employees to submit mileage reimbursement and tr
 |------|--------|
 | **Employee** | Submit trips and expense reports, view own history |
 | **Manager** | All employee access + approve or send back reports for assigned employees; view accounting log |
-| **Admin** | Full access — manage employees and properties, view all reports, export data |
-| **Application Owner** | All admin access + manage mileage rates, activate pending users, access deleted reports log |
+| **Admin** | Full access — manage employees, properties, mileage rates, and pending users; view all reports; access analytics |
 
 Employees may have more than one approver — all are notified on submission and any one of them may approve or return the report.
+
+> **Note:** A legacy `APPLICATION_OWNER` role exists in the database for backwards compatibility. It is treated identically to `ADMIN` in all application logic and cannot be assigned to new users through the UI.
 
 ---
 
@@ -56,7 +56,7 @@ Reports move through the following statuses:
 ## Getting Started (For Employees)
 
 1. Go to the app URL and click **Sign Up** using your **exact work email address** (e.g. `jsmith@riverwestproperties.com`)
-2. Your account will be **pending** until an Application Owner activates it and assigns your role and approver(s)
+2. Your account will be **pending** until an Admin activates it and assigns your role and approver(s)
 3. Once activated you will receive an email with a link to the app
 4. Set your primary office address in **Profile & Settings** — this is used as the default trip origin
 
@@ -67,37 +67,51 @@ Reports move through the following statuses:
 ## Admin Guide
 
 ### Managing Employees
-Go to **Admin → Employees** to:
+Go to **Administration → Employees** to:
 - Add, edit, or deactivate employee accounts
 - Assign one or more approvers per employee (any assigned approver can approve their reports)
-- Change roles (Admins and above only; only the Application Owner can assign the Application Owner role)
+- Change roles (Admins only; no user can change their own role)
 - Click **View Reports** to jump directly to an employee's report history
 
 ### Managing Properties
-Go to **Admin → Properties** to add, edit, or deactivate properties in the destination list.
+Go to **Administration → Properties** to add, edit, or deactivate properties in the destination list.
 
 ### Accounting Log
-Go to **Admin → Sent to Accounting** to view all reports that have been approved and emailed to accounting. Managers see only their team's reports; Admins and the Application Owner see all.
+Go to **Administration → Sent to Accounting** to view all reports that have been approved and emailed to accounting. Managers see only their team's reports; Admins see all.
+
+### Activating Pending Users
+Go to **Administration → Pending Users** to see new sign-ups awaiting activation. For each user, select their role and assign approver(s), then click **Activate**.
+
+### Managing Mileage Rates
+Go to **Administration → Mileage Rates** to add a new rate (with an effective date) or view rate history. The current rate applies to all new reports created on or after its effective date. Rates are stored in the database — no deployment needed to update them.
+
+### Deleted Reports
+Go to **Administration → Deleted Reports** to view soft-deleted reports. From here you can permanently (hard) delete a report if needed.
 
 ---
 
-## Application Owner Guide
+## Analytics
 
-### Activating Pending Users
-Go to **Application Owner → Pending Users** to see new sign-ups awaiting activation. For each user, select their role and assign approver(s), then click **Activate**.
+The **Analytics** section (Admin-only, collapsible in the sidebar) provides five detailed reporting pages:
 
-### Managing Mileage Rates
-Go to **Application Owner → Mileage Rates** to add a new rate (with an effective date) or view rate history. The current rate applies to all new reports created on or after its effective date. Rates are stored in the database — no deployment needed to update them.
+| Page | Description |
+|------|-------------|
+| **Overview** | Radar view — live pipeline status, year summary, top employees, top destinations, recent monthly activity, and approval speed highlights |
+| **Employee Miles** | Sortable table by employee: trips, total miles, total reimbursed, avg miles/trip. Filter by year + manager |
+| **Properties** | Trip activity per property: trips as origin, trips as destination, total trips, miles, reimbursed. Filter by year |
+| **Monthly Trends** | Month-by-month breakdown with inline bar charts. Filter by year |
+| **Approval Metrics** | Manager turnaround time — avg days to decision, reports reviewed, approved vs returned. Color-coded bars (green = fast). Filter by year + manager |
 
-### Deleted Reports
-Go to **Application Owner → Deleted Reports** to view soft-deleted reports. From here you can permanently (hard) delete a report if needed.
+All detail pages have sortable column headers (click to toggle asc/desc).
 
-### Reseeding the Database
+---
+
+## Reseeding the Database
 If you ever need to reset and reseed all data (⚠️ this wipes everything):
 ```
 GET https://[app-url]/api/seed?secret=[SEED_SECRET]
 ```
-The seed creates all employees, properties, and approver relationships. Michael Pisano (`mpisano@riverwestpartners.com`) is seeded as Application Owner.
+The seed creates all employees, properties, and approver relationships. Michael Pisano (`mpisano@riverwestpartners.com`) is seeded as Admin.
 
 ---
 
@@ -118,7 +132,7 @@ The seed creates all employees, properties, and approver relationships. Michael 
 | `ACCOUNTING_EMAIL` | Email address that receives approved reports |
 | `SEED_SECRET` | Secret key to protect the `/api/seed` endpoint |
 
-> **Mileage rate** is managed in the app under **Application Owner → Mileage Rates** — there is no `MILEAGE_RATE` environment variable.
+> **Mileage rate** is managed in the app under **Administration → Mileage Rates** — there is no `MILEAGE_RATE` environment variable.
 
 ---
 
@@ -138,4 +152,4 @@ The seed creates all employees, properties, and approver relationships. Michael 
 
 The app auto-deploys to Vercel on every push to `main`. The build command runs `prisma db push` automatically to keep the database schema in sync.
 
-To update the mileage rate, use the **Application Owner → Mileage Rates** page in the app — no redeployment required.
+To update the mileage rate, use the **Administration → Mileage Rates** page in the app — no redeployment required.

@@ -20,6 +20,10 @@ import {
   UserCheck,
   Menu,
   X,
+  ChevronDown,
+  TrendingUp,
+  MapPin,
+  Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Role } from '@prisma/client'
@@ -61,24 +65,27 @@ export function Sidebar({
 
   const adminNav: NavItem[] = [
     { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
-    { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/reports', label: 'All Reports', icon: ClipboardList },
     { href: '/admin/employees', label: 'Employees', icon: Users },
     { href: '/admin/properties', label: 'Properties', icon: Building2 },
     { href: '/admin/accounting', label: 'Sent to Accounting', icon: FileText },
-    {
-      href: '/ao/pending-users',
-      label: 'Pending Users',
-      icon: UserCheck,
-      badge: pendingUsersCount,
-    },
+    { href: '/ao/pending-users', label: 'Pending Users', icon: UserCheck, badge: pendingUsersCount },
     { href: '/ao/mileage-rates', label: 'Mileage Rates', icon: DollarSign },
     { href: '/ao/deleted-reports', label: 'Deleted Reports', icon: Trash2 },
   ]
 
+  const analyticsNav: NavItem[] = [
+    { href: '/analytics', label: 'Overview', icon: BarChart3 },
+    { href: '/analytics/employees', label: 'Employee Miles', icon: Users },
+    { href: '/analytics/properties', label: 'Properties', icon: MapPin },
+    { href: '/analytics/trends', label: 'Monthly Trends', icon: TrendingUp },
+    { href: '/analytics/approvals', label: 'Approval Metrics', icon: Clock },
+  ]
+
   const isActive = (href: string) => {
     if (href === '/reports' && pathname === '/reports') return true
-    if (href !== '/reports' && pathname.startsWith(href)) return true
+    if (href === '/analytics' && pathname === '/analytics') return true
+    if (href !== '/reports' && href !== '/analytics' && pathname.startsWith(href)) return true
     return false
   }
 
@@ -132,12 +139,22 @@ export function Sidebar({
         )}
 
         {isAdminOrAbove && (
-          <NavSection
-            label="Administration"
-            items={adminNav}
-            isActive={isActive}
-            onNav={() => setMobileOpen(false)}
-          />
+          <>
+            <CollapsibleNavSection
+              label="Administration"
+              items={adminNav}
+              isActive={isActive}
+              onNav={() => setMobileOpen(false)}
+              defaultOpen={adminNav.some(item => isActive(item.href))}
+            />
+            <CollapsibleNavSection
+              label="Analytics"
+              items={analyticsNav}
+              isActive={isActive}
+              onNav={() => setMobileOpen(false)}
+              defaultOpen={analyticsNav.some(item => isActive(item.href))}
+            />
+          </>
         )}
       </nav>
 
@@ -210,6 +227,52 @@ export function Sidebar({
         {sidebarContent}
       </aside>
     </>
+  )
+}
+
+function CollapsibleNavSection({
+  label,
+  items,
+  isActive,
+  onNav,
+  defaultOpen,
+}: {
+  label: string
+  items: NavItem[]
+  isActive: (href: string) => boolean
+  onNav: () => void
+  defaultOpen: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 mb-1 group"
+      >
+        <p className="text-navy-400 text-xs font-semibold uppercase tracking-wider group-hover:text-navy-300 transition-colors">
+          {label}
+        </p>
+        <ChevronDown
+          className={cn(
+            'h-3 w-3 text-navy-500 group-hover:text-navy-400 transition-all',
+            open ? 'rotate-0' : '-rotate-90',
+          )}
+        />
+      </button>
+      {open && items.map((item) => (
+        <SidebarNavItem
+          key={item.href}
+          href={item.href}
+          label={item.label}
+          icon={item.icon}
+          badge={item.badge}
+          active={isActive(item.href)}
+          onNav={onNav}
+        />
+      ))}
+    </div>
   )
 }
 
