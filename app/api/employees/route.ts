@@ -42,11 +42,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'name and email are required' }, { status: 400 })
     }
 
-    // Only APPLICATION_OWNER can assign APPLICATION_OWNER role
-    if (role === Role.APPLICATION_OWNER && me.role !== Role.APPLICATION_OWNER) {
-      return NextResponse.json({ error: 'Only the Application Owner can assign that role' }, { status: 403 })
-    }
-
     const employee = await db.employee.create({
       data: {
         name,

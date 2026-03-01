@@ -221,7 +221,7 @@ function coverPage() {
     makeTable(
       ['Role', 'Name', 'Email'],
       [
-        ['Application Owner', 'Michael Pisano', 'mpisano@riverwestpartners.com'],
+        ['Admin', 'Michael Pisano', 'mpisano@riverwestpartners.com'],
       ],
       [30, 35, 35]
     ),
@@ -273,7 +273,7 @@ function section2() {
   return [
     h1('2. User Roles & Permissions'),
     hr(),
-    p('The system has four roles arranged in a hierarchy. Each higher role inherits all permissions of the roles below it.'),
+    p('The system has three roles arranged in a hierarchy. Each higher role inherits all permissions of the roles below it.'),
     spacer(),
     makeTable(
       ['Role', 'Description', 'Key Permissions'],
@@ -290,16 +290,11 @@ function section2() {
         ],
         [
           'Admin',
-          'Administrative staff with full organisational visibility.',
-          ['All Manager permissions', 'View and manage all employees and their approver assignments', 'View and manage all properties', 'View all reports organisation-wide', 'Run bulk Excel exports', 'Access Admin Dashboard & Analytics', 'Soft-delete reports'],
-        ],
-        [
-          'Application Owner',
-          'The system administrator. Michael Pisano (mpisano@riverwestpartners.com) holds this role.',
-          ['All Admin permissions', 'Set and manage mileage reimbursement rates', 'Activate and configure pending user accounts', 'Assign roles (including the Application Owner role)', 'View and permanently delete soft-deleted reports', 'Access all AO-only system settings'],
+          'Administrative staff with full organisational visibility. Michael Pisano (mpisano@riverwestpartners.com) holds this role.',
+          ['All Manager permissions', 'View and manage all employees and their approver assignments', 'View and manage all properties', 'View all reports organisation-wide', 'Run bulk Excel exports', 'Access Admin Dashboard & Analytics', 'Soft-delete and hard-delete reports', 'Set and manage mileage reimbursement rates', 'Activate and configure pending user accounts', 'Assign roles'],
         ],
       ],
-      [18, 32, 50]
+      [15, 35, 50]
     ),
     spacer(),
     noteBox('Multi-Approver Note', 'An employee may have more than one approver assigned. All assigned approvers are notified when a report is submitted. Any single approver may approve or return the report — the first action taken is final.'),
@@ -316,13 +311,13 @@ function section3() {
     numbered('Enter your work email address (e.g. jsmith@riverwestproperties.com). This must exactly match the email on file with your manager.'),
     numbered('Create a password and complete any Clerk verification steps.'),
     numbered([bold('Your account is now PENDING.'), run(' You will see a "Your account is pending activation" message and cannot access the application yet.')]),
-    numbered('The Application Owner receives an email notification about your sign-up and will activate your account.'),
+    numbered('All active Admins receive an email notification about your sign-up and will activate your account.'),
     spacer(),
     noteBox('Important', 'You must use your exact work email address. If your Clerk account uses a personal email, the system will not be able to link you to your employee record and your account may not be found.', AMBER, 'FFFBEB'),
     spacer(),
-    h2('3.2  Account Activation (Application Owner)'),
-    p('When a new user signs up, the Application Owner must activate their account before they can log in:'),
-    numbered('Log in as the Application Owner and go to Application Owner → Pending Users.'),
+    h2('3.2  Account Activation (Admin)'),
+    p('When a new user signs up, an Admin must activate their account before they can log in:'),
+    numbered('Log in as an Admin and go to Administration → Pending Users.'),
     numbered('Locate the new user in the list.'),
     numbered('Click Activate, then select the appropriate Role and assign one or more Approver(s).'),
     numbered('Click Confirm. The user will receive an activation email with a link to the application.'),
@@ -481,17 +476,17 @@ function section6() {
 
 function section7() {
   return [
-    h1('7. Application Owner Guide'),
+    h1('7. Admin — Pending Users, Mileage Rates & Deleted Reports'),
     hr(),
     h2('7.1  Pending Users Activation'),
-    p('Go to Application Owner → Pending Users to see all accounts that have signed up but not yet been activated.'),
+    p('Go to Administration → Pending Users to see all accounts that have signed up but not yet been activated.'),
     numbered('Click Activate next to a pending user.'),
-    numbered('Select the appropriate Role from the dropdown.'),
+    numbered('Select the appropriate Role from the dropdown (Employee, Manager, or Admin).'),
     numbered('Check one or more Approver(s) from the list.'),
     numbered('Click Activate Account. The user receives an email confirming their account is active.'),
     spacer(),
     h2('7.2  Mileage Rate Management'),
-    p('Go to Application Owner → Mileage Rates to manage the reimbursement rate.'),
+    p('Go to Administration → Mileage Rates to manage the reimbursement rate.'),
     bullet('The current effective rate is shown prominently at the top of the page.'),
     bullet('The full rate history table shows all past rates with their effective dates.'),
     bullet('To set a new rate, click Add New Rate, enter the rate in $/mile and the date from which it applies, then save.'),
@@ -501,7 +496,7 @@ function section7() {
     noteBox('Annual Rate Update', 'Update the mileage rate at the start of each year when the IRS publishes the new standard mileage rate. No code deployment or environment variable change is required — update it here in the application.', GREEN, 'F0FDF4'),
     spacer(),
     h2('7.3  Deleted Reports'),
-    p('Go to Application Owner → Deleted Reports to view all soft-deleted reports.'),
+    p('Go to Administration → Deleted Reports to view all soft-deleted reports.'),
     bullet('Soft-deleted reports are removed from all standard views but are retained for audit purposes.'),
     bullet('The log shows who deleted the report, when, and any deletion reason recorded.'),
     bullet('To permanently remove a report, click Hard Delete on the report row and confirm. This action is irreversible.'),
@@ -540,11 +535,11 @@ function section9() {
     makeTable(
       ['Trigger', 'Recipient(s)', 'Subject / Content'],
       [
-        ['New user signs up (status: PENDING)',    'Application Owner',         'New User Sign-Up notification. Includes the new user\'s name and email, with a link to Pending Users.'],
+        ['New user signs up (status: PENDING)',    'All active Admins',         'New User Sign-Up notification. Includes the new user\'s name and email, with a link to Pending Users.'],
         ['Employee submits or resubmits a report', 'All assigned approvers',    'Action Required: Expense Report [#] submitted by [Name] (or Resubmitted: ... on resubmission). Includes report number, period, and optional resubmit message from the employee. Contains a direct link to review the report.'],
         ['Approver approves a report',             'Accounting team + Approver (CC)', 'Approved Expense Report [#] — [Employee] — [Period]. Excel workbook attached.'],
         ['Approver returns report for revision',   'Employee (report owner)',    'Expense Report [#] — Sent Back for Revision. Contains the overall reason and per-trip notes (with trip date, origin, and destination labelled). Includes a link back to the report.'],
-        ['Application Owner activates an account', 'Newly activated user',      'Your RiverWest Travel Reporting account is active. Contains a link to My Reports.'],
+        ['Admin activates an account',             'Newly activated user',      'Your RiverWest Travel Reporting account is active. Contains a link to My Reports.'],
       ],
       [28, 24, 48]
     ),
@@ -591,7 +586,7 @@ function section11() {
   return [
     h1('11. Environment & Configuration Reference'),
     hr(),
-    p('The following environment variables must be configured in Vercel (or .env.local for local development). Contact the Application Owner, Michael Pisano (mpisano@riverwestpartners.com), for the actual values.'),
+    p('The following environment variables must be configured in Vercel (or .env.local for local development). Contact Michael Pisano (mpisano@riverwestpartners.com) for the actual values.'),
     spacer(),
     makeTable(
       ['Variable', 'Required', 'Description'],
@@ -618,8 +613,8 @@ function section11() {
     numbered('Deploy the application to Vercel with all environment variables set.'),
     numbered('Vercel runs prisma db push automatically during the build to apply the database schema.'),
     numbered('Seed the database by visiting: GET https://[app-url]/api/seed?secret=[SEED_SECRET]'),
-    numbered('Sign up with the Application Owner email — Michael Pisano (mpisano@riverwestpartners.com) — and activate the account via the database if needed for first-time setup.'),
-    numbered('Go to Application Owner → Mileage Rates and add the current IRS standard mileage rate with today\'s effective date.'),
+    numbered('Sign up with the first Admin email — Michael Pisano (mpisano@riverwestpartners.com) — and activate the account via the database if needed for first-time setup.'),
+    numbered('Go to Administration → Mileage Rates and add the current IRS standard mileage rate with today\'s effective date.'),
     br(),
   ]
 }
@@ -655,13 +650,13 @@ function section13() {
     h1('13. Troubleshooting & FAQ'),
     hr(),
     h2('"My account says Pending — I cannot log in."'),
-    p('Your account has been created but not yet activated. Contact your manager or the Application Owner. They need to go to Application Owner → Pending Users, find your account, assign you a role and approver, and click Activate.'),
+    p('Your account has been created but not yet activated. Contact your manager or an Admin (e.g. Michael Pisano — mpisano@riverwestpartners.com). They need to go to Administration → Pending Users, find your account, assign you a role and approver, and click Activate.'),
     spacer(),
     h2('"The wrong name/profile is showing in my settings."'),
     p('This was caused by a bug where the Settings page displayed the first employee alphabetically instead of the logged-in user. This has been resolved. If you still see incorrect data, clear your browser cache and sign out and back in.'),
     spacer(),
-    h2('"I cannot see the Application Owner section in the sidebar."'),
-    p('Only employees with the Application Owner role see that sidebar section. If you should have this access, contact Michael Pisano (mpisano@riverwestpartners.com) to have your role updated.'),
+    h2('"I cannot see the full Administration section in the sidebar."'),
+    p('The full Administration section (including Pending Users, Mileage Rates, and Deleted Reports) is visible only to Admins. If you should have Admin access, contact Michael Pisano (mpisano@riverwestpartners.com) to have your role updated.'),
     spacer(),
     h2('"My trip mileage looks wrong."'),
     p('Mileage is calculated using the Google Maps Distance Matrix API based on the driving distance between the selected addresses. Ensure the property addresses in the system are correct (Admin → Properties) and that your Primary Office address in Profile & Settings is accurate. If a Custom Address was used, double-check it was entered correctly.'),
@@ -673,7 +668,7 @@ function section13() {
     p('Approved reports are permanently locked as the integrity of the accounting record depends on immutability. Contact Michael Pisano (mpisano@riverwestpartners.com). If a correction is truly necessary, he can soft-delete the report and a new report can be created for the corrected period.'),
     spacer(),
     h2('"The mileage rate needs to be updated for the new year."'),
-    p('Log in as the Application Owner, go to Application Owner → Mileage Rates, click Add New Rate, enter the new $/mile rate, and set the effective date to January 1 of the new year (or the IRS-published effective date). No code change or redeployment is needed.'),
+    p('Log in as an Admin, go to Administration → Mileage Rates, click Add New Rate, enter the new $/mile rate, and set the effective date to January 1 of the new year (or the IRS-published effective date). No code change or redeployment is needed.'),
     spacer(),
     h2('"I need to reset the database."'),
     p([bold('Warning: this deletes all data. ', AMBER), run('Only do this in a development/staging environment or as an intentional production reset. Call GET /api/seed?secret=[SEED_SECRET] — this wipes all trips, reports, employees, properties, and accounting logs, then re-seeds from the defined employee and property lists. All Clerk accounts remain intact but will be re-linked on next sign-in.')]),

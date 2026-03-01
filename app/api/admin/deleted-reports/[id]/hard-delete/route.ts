@@ -3,12 +3,12 @@ import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role } from '@prisma/client'
 
-// POST /api/admin/deleted-reports/[id]/hard-delete — permanently delete a soft-deleted report (AO only)
+// POST /api/admin/deleted-reports/[id]/hard-delete — permanently delete a soft-deleted report (admin only)
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const me = await requireEmployee()
-    if (me.role !== Role.APPLICATION_OWNER) {
-      return NextResponse.json({ error: 'Forbidden: Application Owner access required' }, { status: 403 })
+    if (me.role !== Role.ADMIN && me.role !== Role.APPLICATION_OWNER) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
     const report = await db.expenseReport.findUnique({

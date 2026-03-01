@@ -23,12 +23,12 @@ export async function GET() {
   }
 }
 
-// POST /api/mileage-rates — create a new rate (AO only)
+// POST /api/mileage-rates — create a new rate (admin only)
 export async function POST(request: NextRequest) {
   try {
     const me = await requireEmployee()
-    if (me.role !== Role.APPLICATION_OWNER) {
-      return NextResponse.json({ error: 'Forbidden: Application Owner access required' }, { status: 403 })
+    if (me.role !== Role.ADMIN && me.role !== Role.APPLICATION_OWNER) {
+      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
     const body = await request.json()

@@ -46,7 +46,7 @@ export default function PendingUsersPage() {
       setPending(employees.filter((e: Employee) => e.status === 'PENDING'))
       setAllEmployees(
         employees
-          .filter((e: Employee) => e.status === 'ACTIVE' && ['MANAGER', 'ADMIN', 'APPLICATION_OWNER'].includes(e.role))
+          .filter((e: Employee) => e.status === 'ACTIVE' && ['MANAGER', 'ADMIN'].includes(e.role))
           .map((e: Employee) => ({ id: e.id, name: e.name, role: e.role }))
       )
       setLoading(false)
@@ -185,7 +185,6 @@ export default function PendingUsersPage() {
                   <SelectItem value="EMPLOYEE">Employee</SelectItem>
                   <SelectItem value="MANAGER">Manager</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="APPLICATION_OWNER">Application Owner</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -66,9 +66,6 @@ export function Sidebar({
     { href: '/admin/employees', label: 'Employees', icon: Users },
     { href: '/admin/properties', label: 'Properties', icon: Building2 },
     { href: '/admin/accounting', label: 'Sent to Accounting', icon: FileText },
-  ]
-
-  const aoNav: NavItem[] = [
     {
       href: '/ao/pending-users',
       label: 'Pending Users',
@@ -88,7 +85,6 @@ export function Sidebar({
   const isManagerOrAbove =
     role === Role.MANAGER || role === Role.ADMIN || role === Role.APPLICATION_OWNER
   const isAdminOrAbove = role === Role.ADMIN || role === Role.APPLICATION_OWNER
-  const isAO = role === Role.APPLICATION_OWNER
 
   const totalBadge =
     (pendingCount ?? 0) + (employeeActionCount ?? 0) + (pendingUsersCount ?? 0)
@@ -139,15 +135,6 @@ export function Sidebar({
           <NavSection
             label="Administration"
             items={adminNav}
-            isActive={isActive}
-            onNav={() => setMobileOpen(false)}
-          />
-        )}
-
-        {isAO && (
-          <NavSection
-            label="Application Owner"
-            items={aoNav}
             isActive={isActive}
             onNav={() => setMobileOpen(false)}
           />
