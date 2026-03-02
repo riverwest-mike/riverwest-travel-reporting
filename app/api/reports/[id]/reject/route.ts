@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             const trip = report.trips.find((t) => t.id === tn.tripId)
             if (!trip) return null
             return {
-              date: trip.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              date: trip.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
               origin: tripLocationLabel(trip.originType, trip.originProperty?.name, trip.originAddress, trip.originType === 'HOME'),
               destination: tripLocationLabel(trip.destinationType, trip.destinationProperty?.name, trip.destinationAddress, false),
               note: tn.note.trim(),

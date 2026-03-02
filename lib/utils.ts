@@ -22,6 +22,7 @@ export function formatDate(date: Date | string): string {
     month: '2-digit',
     day: '2-digit',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(d)
 }
 
