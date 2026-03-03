@@ -83,7 +83,7 @@ export async function GET() {
     // Pending users (admin only)
     if (isAdminOrAO) {
       const pendingUsers = await db.employee.count({
-        where: { clerkId: null, isActive: false },
+        where: { status: 'PENDING' },
       })
       if (pendingUsers > 0) {
         items.push({

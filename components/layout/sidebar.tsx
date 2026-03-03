@@ -24,6 +24,8 @@ import {
   TrendingUp,
   MapPin,
   Clock,
+  Navigation2,
+  CalendarRange,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/layout/notification-bell'
 import { cn } from '@/lib/utils'
@@ -57,6 +59,7 @@ export function Sidebar({
   const employeeNav: NavItem[] = [
     { href: '/reports', label: 'My Reports', icon: FileText, badge: employeeActionCount },
     { href: '/reports/new', label: 'New Report', icon: PlusCircle },
+    { href: '/routes', label: 'Route Frequency', icon: Navigation2 },
   ]
 
   const managerNav: NavItem[] = [
@@ -80,12 +83,14 @@ export function Sidebar({
     { href: '/analytics/properties', label: 'Properties', icon: MapPin },
     { href: '/analytics/trends', label: 'Monthly Trends', icon: TrendingUp },
     { href: '/analytics/approvals', label: 'Approval Metrics', icon: Clock },
+    { href: '/analytics/yoy', label: 'Year-over-Year', icon: CalendarRange },
   ]
 
   const isActive = (href: string) => {
     if (href === '/reports' && pathname === '/reports') return true
     if (href === '/analytics' && pathname === '/analytics') return true
-    if (href !== '/reports' && href !== '/analytics' && pathname.startsWith(href)) return true
+    if (href === '/routes' && pathname === '/routes') return true
+    if (href !== '/reports' && href !== '/analytics' && href !== '/routes' && pathname.startsWith(href)) return true
     return false
   }
 
