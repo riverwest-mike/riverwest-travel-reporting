@@ -1,12 +1,22 @@
 import { db } from '@/lib/db'
 
 export async function generateReportNumber(month: number, year: number): Promise<string> {
-  const count = await db.expenseReport.count({
-    where: { periodYear: year, periodMonth: month },
-  })
-  const seq = String(count + 1).padStart(4, '0')
   const mm = String(month).padStart(2, '0')
-  return `EXP-${year}-${mm}-${seq}`
+  const prefix = `EXP-${year}-${mm}-`
+
+  // Use the highest existing sequence number rather than count, so gaps from
+  // deleted reports never produce a number that already exists in the DB.
+  const existing = await db.expenseReport.findMany({
+    where: { periodYear: year, periodMonth: month },
+    select: { reportNumber: true },
+  })
+
+  const maxSeq = existing.reduce((max, r) => {
+    const seq = parseInt(r.reportNumber.slice(prefix.length), 10)
+    return isNaN(seq) ? max : Math.max(max, seq)
+  }, 0)
+
+  return `${prefix}${String(maxSeq + 1).padStart(4, '0')}`
 }
 
 export async function recalcReportTotals(reportId: string, mileageRate: number) {
