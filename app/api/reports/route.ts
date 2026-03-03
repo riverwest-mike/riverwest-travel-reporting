@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireEmployee } from '@/lib/auth'
+import { requireEmployee, requireActiveEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReportNumber } from '@/lib/reports'
 import { Role, ReportStatus } from '@prisma/client'
@@ -45,8 +45,18 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let employee
   try {
-    const employee = await requireEmployee()
+    employee = await requireActiveEmployee()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    if (msg === 'Pending') {
+      return NextResponse.json({ error: 'Your account is pending activation by an administrator.' }, { status: 403 })
+    }
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
     const body = await request.json()
     const { periodMonth, periodYear, notes } = body
 
@@ -77,7 +87,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(report, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (err) {
+    console.error('[POST /api/reports]', err)
+    return NextResponse.json({ error: 'Failed to create report. Please try again.' }, { status: 500 })
   }
 }
