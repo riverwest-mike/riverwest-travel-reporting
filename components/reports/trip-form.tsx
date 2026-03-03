@@ -79,7 +79,7 @@ export function TripForm({ reportId, onSuccess, onCancel, hasHomeAddress, editVa
   const [favoriteName, setFavoriteName] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
-  const [date, setDate] = useState(() => editValues?.date ?? today)
+  const [date, setDate] = useState(() => editValues?.date ?? '')
   const [originType, setOriginType] = useState(editValues?.originType ?? 'HOME')
   const [originPropertyId, setOriginPropertyId] = useState(editValues?.originPropertyId ?? '')
   const [originAddress, setOriginAddress] = useState(editValues?.originAddress ?? '')

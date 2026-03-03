@@ -412,7 +412,7 @@ export function ReportDetail({ report: initialReport, currentEmployee, isOwner }
                         <TableCell className="text-sm tabular-nums font-medium">
                           {(trip.roundTrip ? trip.distance * 2 : trip.distance).toFixed(1)}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
+                        <TableCell className="text-sm text-muted-foreground min-w-[120px]">
                           {trip.purpose ?? '—'}
                         </TableCell>
                         {showTripStatuses && (
