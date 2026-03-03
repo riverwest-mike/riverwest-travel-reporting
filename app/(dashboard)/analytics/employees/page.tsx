@@ -18,7 +18,7 @@ interface EmployeeRow {
   avgMilesPerTrip: number
 }
 
-interface Manager { id: string; name: string }
+interface Person { id: string; name: string }
 
 type SortCol = 'name' | 'trips' | 'miles' | 'amount' | 'avgMilesPerTrip'
 
@@ -27,10 +27,12 @@ const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
 
 export default function EmployeeMilesPage() {
   const [employees, setEmployees] = useState<EmployeeRow[]>([])
-  const [managers, setManagers] = useState<Manager[]>([])
+  const [managers, setManagers] = useState<Person[]>([])
+  const [allEmployees, setAllEmployees] = useState<Person[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState(String(currentYear))
   const [selectedManager, setSelectedManager] = useState('all')
+  const [selectedEmployee, setSelectedEmployee] = useState('all')
   const [sortCol, setSortCol] = useState<SortCol>('miles')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -38,15 +40,17 @@ export default function EmployeeMilesPage() {
     setLoading(true)
     const params = new URLSearchParams({ year: selectedYear })
     if (selectedManager !== 'all') params.set('managerId', selectedManager)
+    if (selectedEmployee !== 'all') params.set('employeeId', selectedEmployee)
     fetch(`/api/analytics/employees?${params}`)
       .then(r => r.json())
       .then(d => {
         setEmployees(d.employees ?? [])
         setManagers(d.managers ?? [])
+        setAllEmployees(d.allEmployees ?? [])
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [selectedYear, selectedManager])
+  }, [selectedYear, selectedManager, selectedEmployee])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -88,14 +92,21 @@ export default function EmployeeMilesPage() {
                 {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={selectedManager} onValueChange={setSelectedManager}>
-              <SelectTrigger className="w-52"><SelectValue placeholder="All Managers" /></SelectTrigger>
+            <Select value={selectedManager} onValueChange={v => { setSelectedManager(v); setSelectedEmployee('all') }}>
+              <SelectTrigger className="w-48"><SelectValue placeholder="All Managers" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Managers</SelectItem>
                 {managers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => { setSelectedYear(String(currentYear)); setSelectedManager('all') }}>
+            <Select value={selectedEmployee} onValueChange={v => { setSelectedEmployee(v); setSelectedManager('all') }}>
+              <SelectTrigger className="w-52"><SelectValue placeholder="Individual Employee" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {allEmployees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => { setSelectedYear(String(currentYear)); setSelectedManager('all'); setSelectedEmployee('all') }}>
               Reset
             </Button>
           </div>
@@ -132,7 +143,12 @@ export default function EmployeeMilesPage() {
                     <TableCell className="text-sm font-medium">
                       <span className="inline-flex items-center gap-2">
                         <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
-                        {e.name}
+                        <Link
+                          href={`/analytics/employees/${e.id}?year=${selectedYear}`}
+                          className="text-navy-600 hover:underline"
+                        >
+                          {e.name}
+                        </Link>
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-center">{e.trips}</TableCell>

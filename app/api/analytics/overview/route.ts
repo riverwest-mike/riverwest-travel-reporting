@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const yearStr = searchParams.get('year')
+    const monthStr = searchParams.get('month')
     const year = yearStr ? parseInt(yearStr) : new Date().getFullYear()
+    const month = monthStr ? parseInt(monthStr) : undefined
 
     // ── Pipeline (always live — no year filter) ────────────────────────────
     const [submittedReports, needsRevisionCount, draftCount] = await Promise.all([
@@ -36,10 +38,10 @@ export async function GET(request: NextRequest) {
           )
         : null
 
-    // ── Approved trips for selected year ──────────────────────────────────
+    // ── Approved trips for selected year/month ────────────────────────────
     const trips = await db.trip.findMany({
       where: {
-        report: { status: 'APPROVED', deletedAt: null, periodYear: year },
+        report: { status: 'APPROVED', deletedAt: null, periodYear: year, ...(month && { periodMonth: month }) },
       },
       include: {
         report: {
@@ -117,6 +119,7 @@ export async function GET(request: NextRequest) {
         submittedAt: { not: null },
         deletedAt: null,
         periodYear: year,
+        ...(month && { periodMonth: month }),
       },
       select: {
         status: true,

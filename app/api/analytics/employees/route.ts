@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const yearStr = searchParams.get('year')
     const year = yearStr ? parseInt(yearStr) : undefined
     const managerId = searchParams.get('managerId') || undefined
+    const employeeId = searchParams.get('employeeId') || undefined
 
     const trips = await db.trip.findMany({
       where: {
@@ -22,9 +23,8 @@ export async function GET(request: NextRequest) {
           status: 'APPROVED',
           deletedAt: null,
           ...(year && { periodYear: year }),
-          ...(managerId && {
-            employee: { approvers: { some: { approverId: managerId } } },
-          }),
+          ...(managerId && { employee: { approvers: { some: { approverId: managerId } } } }),
+          ...(employeeId && { employeeId }),
         },
       },
       include: {
@@ -60,14 +60,21 @@ export async function GET(request: NextRequest) {
       avgMilesPerTrip: v.trips > 0 ? Math.round((v.miles / v.trips) * 10) / 10 : 0,
     }))
 
-    // Available managers for filter dropdown
-    const managers = await db.employee.findMany({
-      where: { isActive: true, role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] } },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    })
+    // Filter dropdowns
+    const [managers, allEmployees] = await Promise.all([
+      db.employee.findMany({
+        where: { isActive: true, role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] } },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      db.employee.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ])
 
-    return NextResponse.json({ employees, managers })
+    return NextResponse.json({ employees, managers, allEmployees })
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

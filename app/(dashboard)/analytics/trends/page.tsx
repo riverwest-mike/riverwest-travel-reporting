@@ -101,8 +101,15 @@ export default function MonthlyTrendsPage() {
               </TableHeader>
               <TableBody>
                 {trends.map((t, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm font-medium">{t.label}</TableCell>
+                  <TableRow key={i} className="hover:bg-navy-50/50">
+                    <TableCell className="text-sm font-medium">
+                      <Link
+                        href={`/analytics/trends/${t.year}/${t.month}`}
+                        className="text-navy-600 hover:underline"
+                      >
+                        {t.label}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-sm text-center">{t.trips}</TableCell>
                     <TableCell className="text-sm text-right tabular-nums">{formatMiles(t.miles)}</TableCell>
                     <TableCell className="text-sm text-right font-medium">{formatCurrency(t.amount)}</TableCell>
