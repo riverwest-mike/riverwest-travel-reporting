@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { StatusBadge } from '@/components/reports/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,6 +46,7 @@ function tripLabel(type: string, property: Property | null, address: string | nu
 }
 
 export function ApprovalDetail({ report: initial, managerId }: { report: ReportData; managerId: string }) {
+  const router = useRouter()
   const [report, setReport] = useState(initial)
   const [reportLoading, setReportLoading] = useState(false)
   const [error, setError] = useState('')
@@ -116,10 +118,10 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
       const res = await fetch(`/api/reports/${report.id}/approve`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to approve')
-      setReport({ ...report, status: ReportStatus.APPROVED, approvedAt: data.approvedAt })
+      router.push('/approvals')
+      router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error')
-    } finally {
       setReportLoading(false)
     }
   }
@@ -137,18 +139,11 @@ export function ApprovalDetail({ report: initial, managerId }: { report: ReportD
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to send back')
-      setReport({
-        ...report,
-        status: ReportStatus.NEEDS_REVISION,
-        rejectedAt: data.rejectedAt,
-        rejectionReason: rejectReason,
-      })
       setShowRejectDialog(false)
-      setRejectReason('')
-      setTripNotes({})
+      router.push('/approvals')
+      router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error')
-    } finally {
       setReportLoading(false)
     }
   }

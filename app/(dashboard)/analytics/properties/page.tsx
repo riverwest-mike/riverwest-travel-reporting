@@ -23,22 +23,29 @@ type SortCol = 'name' | 'asOrigin' | 'asDestination' | 'totalVisits' | 'miles' |
 
 const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+]
 
 export default function PropertiesAnalyticsPage() {
   const [properties, setProperties] = useState<PropertyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState(String(currentYear))
+  const [selectedMonth, setSelectedMonth] = useState('all')
   const [sortCol, setSortCol] = useState<SortCol>('totalVisits')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const fetchData = useCallback(() => {
     setLoading(true)
-    fetch(`/api/analytics/properties?year=${selectedYear}`)
+    const p = new URLSearchParams({ year: selectedYear })
+    if (selectedMonth !== 'all') p.set('month', selectedMonth)
+    fetch(`/api/analytics/properties?${p}`)
       .then(r => r.json())
       .then(d => setProperties(d.properties ?? []))
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [selectedYear])
+  }, [selectedYear, selectedMonth])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -75,7 +82,14 @@ export default function PropertiesAnalyticsPage() {
                 {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => setSelectedYear(String(currentYear))}>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="All Months" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => { setSelectedYear(String(currentYear)); setSelectedMonth('all') }}>
               Reset
             </Button>
           </div>
@@ -112,7 +126,12 @@ export default function PropertiesAnalyticsPage() {
                     <TableCell className="text-sm font-medium">
                       <span className="inline-flex items-center gap-2">
                         <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
-                        {p.name}
+                        <Link
+                          href={`/analytics/properties/${p.id}?year=${selectedYear}${selectedMonth !== 'all' ? `&month=${selectedMonth}` : ''}`}
+                          className="text-navy-600 hover:underline"
+                        >
+                          {p.name}
+                        </Link>
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-center">{p.asOrigin}</TableCell>

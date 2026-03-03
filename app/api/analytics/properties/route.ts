@@ -13,11 +13,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const yearStr = searchParams.get('year')
+    const monthStr = searchParams.get('month')
     const year = yearStr ? parseInt(yearStr) : undefined
+    const month = monthStr ? parseInt(monthStr) : undefined
 
     const trips = await db.trip.findMany({
       where: {
-        report: { status: 'APPROVED', deletedAt: null, ...(year && { periodYear: year }) },
+        report: { status: 'APPROVED', deletedAt: null, ...(year && { periodYear: year }), ...(month && { periodMonth: month }) },
         OR: [
           { originType: 'PROPERTY', originPropertyId: { not: null } },
           { destinationType: 'PROPERTY', destinationPropertyId: { not: null } },

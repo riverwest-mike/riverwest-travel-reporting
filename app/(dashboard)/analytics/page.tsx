@@ -47,20 +47,31 @@ interface OverviewData {
 
 const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+const MONTHS = [
+  { value: '1', label: 'January' }, { value: '2', label: 'February' },
+  { value: '3', label: 'March' },   { value: '4', label: 'April' },
+  { value: '5', label: 'May' },     { value: '6', label: 'June' },
+  { value: '7', label: 'July' },    { value: '8', label: 'August' },
+  { value: '9', label: 'September'},{ value: '10', label: 'October' },
+  { value: '11', label: 'November'},{ value: '12', label: 'December' },
+]
 
 export default function AnalyticsOverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState(String(currentYear))
+  const [selectedMonth, setSelectedMonth] = useState('all')
 
   useEffect(() => {
     setLoading(true)
-    fetch(`/api/analytics/overview?year=${selectedYear}`)
+    const p = new URLSearchParams({ year: selectedYear })
+    if (selectedMonth !== 'all') p.set('month', selectedMonth)
+    fetch(`/api/analytics/overview?${p}`)
       .then(r => r.json())
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [selectedYear])
+  }, [selectedYear, selectedMonth])
 
   return (
     <div className="space-y-6">
@@ -72,16 +83,24 @@ export default function AnalyticsOverviewPage() {
             Organization-wide mileage and reimbursement intelligence
           </p>
         </div>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map(y => (
-              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="All Months" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {selectedMonth !== 'all' && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedMonth('all')}>Clear</Button>
+          )}
+        </div>
       </div>
 
       {loading ? (

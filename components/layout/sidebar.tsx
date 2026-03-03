@@ -25,6 +25,7 @@ import {
   MapPin,
   Clock,
 } from 'lucide-react'
+import { NotificationBell } from '@/components/layout/notification-bell'
 import { cn } from '@/lib/utils'
 import { Role } from '@prisma/client'
 
@@ -68,7 +69,6 @@ export function Sidebar({
     { href: '/admin/reports', label: 'All Reports', icon: ClipboardList },
     { href: '/admin/employees', label: 'Employees', icon: Users },
     { href: '/admin/properties', label: 'Properties', icon: Building2 },
-    { href: '/admin/accounting', label: 'Sent to Accounting', icon: FileText },
     { href: '/ao/pending-users', label: 'Pending Users', icon: UserCheck, badge: pendingUsersCount },
     { href: '/ao/mileage-rates', label: 'Mileage Rates', icon: DollarSign },
     { href: '/ao/deleted-reports', label: 'Deleted Reports', icon: Trash2 },
@@ -106,7 +106,7 @@ export function Sidebar({
               RW
             </span>
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-white text-xs font-semibold tracking-[0.2em] uppercase leading-tight">
               RiverWest
             </p>
@@ -117,6 +117,7 @@ export function Sidebar({
               Travel Reporting
             </p>
           </div>
+          <NotificationBell />
         </div>
       </div>
 
