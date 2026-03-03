@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    function summarise(yr: number) {
+    const summarise = (yr: number) => {
       const t = trips.filter(x => x.report.periodYear === yr)
       const miles = t.reduce((s, x) => s + (x.roundTrip ? x.distance * 2 : x.distance), 0)
       const amount = t.reduce((s, x) => {
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Monthly breakdown (all 12 months)
     const monthly = Array.from({ length: 12 }, (_, i) => {
       const month = i + 1
-      function monthSum(yr: number) {
+      const monthSum = (yr: number) => {
         const t = trips.filter(x => x.report.periodYear === yr && x.report.periodMonth === month)
         const miles = t.reduce((s, x) => s + (x.roundTrip ? x.distance * 2 : x.distance), 0)
         const amount = t.reduce((s, x) => {
