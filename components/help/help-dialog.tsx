@@ -2,7 +2,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  HelpCircle, FileText, PlusCircle, Navigation2, CheckSquare,
+  HelpCircle, FileText, PlusCircle, CheckSquare,
   LayoutDashboard, ClipboardList, Users, Building2, UserCheck,
   DollarSign, Trash2, BarChart3, TrendingUp, Clock, MapPin,
   CalendarRange, Settings, BookOpen,
@@ -66,18 +66,6 @@ const HELP: Record<string, HelpSection> = {
       'Save a new route as a favorite via the star link at the bottom of the trip form.',
       'Once submitted, the report is locked — your manager must send it back before you can make changes.',
       'If sent back, an amber banner at the top explains the feedback. You can type a reply note before resubmitting.',
-    ],
-  },
-  routes: {
-    title: 'Route Frequency',
-    icon: Navigation2,
-    description:
-      'Shows your most-traveled origin → destination pairs from approved reports, ranked by number of trips.',
-    tips: [
-      'Only trips on approved reports are counted — draft and submitted trips do not appear here.',
-      'The frequency bar shows relative frequency — the longest bar is your most common route.',
-      'Filter by year and month to spot seasonal patterns.',
-      'Managers and admins can filter by employee to see individual travel patterns.',
     ],
   },
   approvals: {
@@ -279,7 +267,6 @@ function derivePageKey(pathname: string): string {
   if (clean === '' || clean === 'reports') return 'reports'
   if (clean === 'reports/new') return 'reports/new'
   if (clean.startsWith('reports/')) return 'reports/[id]'
-  if (clean === 'routes') return 'routes'
   if (clean === 'approvals') return 'approvals'
   if (clean.startsWith('approvals/')) return 'approvals/[id]'
   if (clean === 'admin/accounting') return 'admin/accounting'
