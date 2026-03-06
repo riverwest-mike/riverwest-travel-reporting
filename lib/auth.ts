@@ -1,47 +1,48 @@
-import { currentUser } from '@clerk/nextjs/server'
+import { headers } from 'next/headers'
+import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { Role, EmployeeStatus } from '@prisma/client'
 
 export async function getEmployee() {
-  const user = await currentUser()
-  if (!user) return null
+  const userId = (await headers()).get('x-clerk-user-id')
+  if (!userId) return null
 
-  const email = user.emailAddresses[0]?.emailAddress
-  if (!email) return null
-
-  // Try to find existing employee record
+  // Try to find existing employee record by Clerk userId
   let employee = await db.employee.findFirst({
-    where: {
-      OR: [
-        { clerkUserId: user.id },
-        { email },
-      ],
-    },
+    where: { clerkUserId: userId },
   })
 
-  if (employee) {
-    // Link clerkUserId if not set
-    if (!employee.clerkUserId) {
+  if (!employee) {
+    // New user — fetch from Clerk backend API to get email/name
+    const user = await clerkClient.users.getUser(userId)
+    const email = user.emailAddresses[0]?.emailAddress
+    if (!email) return null
+
+    // Check if employee exists with this email (pre-registered manually)
+    employee = await db.employee.findFirst({ where: { email } })
+
+    if (employee) {
+      // Link clerkUserId
       employee = await db.employee.update({
         where: { id: employee.id },
-        data: { clerkUserId: user.id },
+        data: { clerkUserId: userId },
       })
-    }
-  } else {
-    // Auto-create employee record for new users — PENDING until activated by AO/Admin
-    employee = await db.employee.create({
-      data: {
-        clerkUserId: user.id,
-        name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || email,
-        email,
-        role: Role.EMPLOYEE,
-        status: EmployeeStatus.PENDING,
-        homeAddress: '4215 Worth Ave, Columbus, OH 43219',
-      },
-    })
+    } else {
+      // Auto-create employee record — PENDING until activated by AO/Admin
+      employee = await db.employee.create({
+        data: {
+          clerkUserId: userId,
+          name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || email,
+          email,
+          role: Role.EMPLOYEE,
+          status: EmployeeStatus.PENDING,
+          homeAddress: '4215 Worth Ave, Columbus, OH 43219',
+        },
+      })
 
-    // Notify Admin(s) of new sign-up (fire-and-forget)
-    notifyAdminsOfNewSignup(employee.name, employee.email).catch(console.error)
+      // Notify Admin(s) of new sign-up (fire-and-forget)
+      notifyAdminsOfNewSignup(employee.name, employee.email).catch(console.error)
+    }
   }
 
   return employee
