@@ -14,8 +14,7 @@ export async function getEmployee() {
 
   if (!employee) {
     // New user — fetch from Clerk backend API to get email/name
-    const client = await clerkClient()
-    const user = await client.users.getUser(userId)
+    const user = await clerkClient.users.getUser(userId)
     const email = user.emailAddresses[0]?.emailAddress
     if (!email) return null
 
