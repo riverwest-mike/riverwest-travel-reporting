@@ -309,7 +309,6 @@ interface HelpDialogProps {
 export function HelpDialog({ open, onOpenChange, pageKey = 'overview' }: HelpDialogProps) {
   const section = HELP[pageKey] ?? HELP.overview
   const Icon = section.icon
-  const isOverview = pageKey === 'overview'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -337,25 +336,6 @@ export function HelpDialog({ open, onOpenChange, pageKey = 'overview' }: HelpDia
             ))}
           </div>
 
-          {/* Show a condensed overview section when on a specific page */}
-          {!isOverview && (
-            <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                App Overview
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                {HELP.overview.description}
-              </p>
-              <div className="space-y-1.5">
-                {HELP.overview.tips.map((tip, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <span className="mt-0.5 text-navy-400 shrink-0">·</span>
-                    <span className="text-muted-foreground leading-snug">{tip}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>
