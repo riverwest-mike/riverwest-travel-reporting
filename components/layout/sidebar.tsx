@@ -26,6 +26,7 @@ import {
   Clock,
   Navigation2,
   CalendarRange,
+  HelpCircle,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/layout/notification-bell'
 import { cn } from '@/lib/utils'
@@ -183,6 +184,13 @@ export function Sidebar({
             <span>Sign Out</span>
           </button>
         </SignOutButton>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('openHelp', { detail: { pageKey: 'overview' } }))}
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-xs text-navy-400 hover:bg-white/10 hover:text-navy-200 w-full transition-colors"
+        >
+          <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Quick Guide</span>
+        </button>
       </div>
     </>
   )

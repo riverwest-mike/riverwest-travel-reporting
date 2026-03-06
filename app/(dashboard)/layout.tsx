@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
+import { FloatingHelpButton } from '@/components/help/floating-help-button'
 import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Role, EmployeeStatus } from '@prisma/client'
@@ -65,6 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="flex-1 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">{children}</div>
       </main>
+      <FloatingHelpButton />
     </div>
   )
 }
