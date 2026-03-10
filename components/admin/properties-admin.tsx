@@ -16,7 +16,6 @@ import { PlusCircle, Pencil, Loader2, ArrowLeft, MapPin } from 'lucide-react'
 interface Property {
   id: string; name: string; address: string; city: string | null; state: string | null
   isActive: boolean
-  _count: { originTrips: number; destinationTrips: number }
 }
 
 export function PropertiesAdmin({ properties: initial }: { properties: Property[] }) {
@@ -115,7 +114,6 @@ export function PropertiesAdmin({ properties: initial }: { properties: Property[
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Address</TableHead>
-                <TableHead>Trip Usage</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-28" />
               </TableRow>
@@ -126,9 +124,6 @@ export function PropertiesAdmin({ properties: initial }: { properties: Property[
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {fullAddress(p) || <span className="text-destructive italic">No address set</span>}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {p._count.originTrips + p._count.destinationTrips} trips
                   </TableCell>
                   <TableCell>
                     <Badge variant={p.isActive ? 'success' : 'outline'}>
