@@ -10,9 +10,6 @@ export default async function AdminPropertiesPage() {
 
   const properties = await db.property.findMany({
     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-    include: {
-      _count: { select: { originTrips: true, destinationTrips: true } },
-    },
   })
 
   return <PropertiesAdmin properties={properties as never} />
