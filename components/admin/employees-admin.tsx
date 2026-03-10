@@ -28,7 +28,7 @@ interface Employee {
   homeAddress: string | null
   isActive: boolean
   approvers: Approver[]
-  _count: { canApproveFor: number; expenseReports: number }
+  _count: { canApproveFor: number }
 }
 
 interface Props {
@@ -186,7 +186,6 @@ export function EmployeesAdmin({ employees: initial, allManagers, isAO }: Props)
                   <TableHead className="hidden sm:table-cell">Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead className="hidden md:table-cell">Approvers</TableHead>
-                  <TableHead className="hidden md:table-cell">Reports</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-28" />
                 </TableRow>
@@ -206,7 +205,6 @@ export function EmployeesAdmin({ employees: initial, allManagers, isAO }: Props)
                         ? '—'
                         : emp.approvers.map((a) => a.approver.name).join(', ')}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{emp._count.expenseReports}</TableCell>
                     <TableCell>
                       <Badge variant={emp.status === 'PENDING' ? 'warning' : emp.isActive ? 'success' : 'outline'}>
                         {emp.status === 'PENDING' ? 'Pending' : emp.isActive ? 'Active' : 'Inactive'}

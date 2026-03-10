@@ -15,7 +15,7 @@ export default async function AdminEmployeesPage() {
       approvers: {
         include: { approver: { select: { id: true, name: true } } },
       },
-      _count: { select: { canApproveFor: true, expenseReports: true } },
+      _count: { select: { canApproveFor: true } },
     },
     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
   })
