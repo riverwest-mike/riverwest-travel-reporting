@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
         { employeeId: employee.id },
         { employee: { approvers: { some: { approverId: employee.id } } } },
       ]
-      if (employeeId) where = { employeeId, deletedAt: null }
+      // Filter by employeeId within the manager's visible scope (do not override the OR)
+      if (employeeId) where.employeeId = employeeId
     } else {
       where.employeeId = employee.id
     }
@@ -64,6 +65,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'periodMonth and periodYear are required' }, { status: 400 })
     }
 
+    const month = Number(periodMonth)
+    const year = Number(periodYear)
+    const currentYear = new Date().getFullYear()
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+      return NextResponse.json({ error: 'periodMonth must be between 1 and 12' }, { status: 400 })
+    }
+    if (!Number.isInteger(year) || year < currentYear - 5 || year > currentYear) {
+      return NextResponse.json({ error: `periodYear must be between ${currentYear - 5} and ${currentYear}` }, { status: 400 })
+    }
+
     // Get the effective mileage rate from the MileageRate table
     const today = new Date()
     const rateRecord = await db.mileageRate.findFirst({
@@ -72,14 +83,14 @@ export async function POST(request: NextRequest) {
     })
     const mileageRate = rateRecord?.rate ?? parseFloat(process.env.MILEAGE_RATE ?? '0.70')
 
-    const reportNumber = await generateReportNumber(Number(periodMonth), Number(periodYear))
+    const reportNumber = await generateReportNumber(month, year)
 
     const report = await db.expenseReport.create({
       data: {
         reportNumber,
         employeeId: employee.id,
-        periodMonth: Number(periodMonth),
-        periodYear: Number(periodYear),
+        periodMonth: month,
+        periodYear: year,
         mileageRate,
         notes: notes ?? null,
         status: ReportStatus.DRAFT,

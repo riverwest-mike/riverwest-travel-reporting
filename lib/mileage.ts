@@ -31,13 +31,3 @@ export async function calculateDistance(
 
   return Math.round(miles * 10) / 10 // round to 1 decimal
 }
-
-export function buildAddress(
-  type: string,
-  propertyAddress: string | null | undefined,
-  customAddress: string | null | undefined
-): string {
-  if (type === 'PROPERTY' && propertyAddress) return propertyAddress
-  if (customAddress) return customAddress
-  throw new Error('No address available for this location')
-}

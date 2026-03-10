@@ -51,7 +51,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (trip.report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (trip.report.status !== ReportStatus.DRAFT && trip.report.status !== ReportStatus.NEEDS_REVISION) {
+    if (
+      trip.report.status !== ReportStatus.DRAFT &&
+      trip.report.status !== ReportStatus.NEEDS_REVISION &&
+      trip.report.status !== ReportStatus.REJECTED
+    ) {
       return NextResponse.json({ error: 'Cannot edit trips on a report in its current state' }, { status: 409 })
     }
 
@@ -62,8 +66,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       roundTrip, purpose, confirmed,
     } = body
 
-    if (date !== undefined && new Date(date) > new Date()) {
-      return NextResponse.json({ error: 'Trip date cannot be in the future' }, { status: 400 })
+    if (date !== undefined) {
+      const today = new Date().toISOString().split('T')[0]
+      if (date > today) {
+        return NextResponse.json({ error: 'Trip date cannot be in the future' }, { status: 400 })
+      }
     }
 
     // Build effective values after patch
@@ -207,7 +214,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     if (trip.report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (trip.report.status !== ReportStatus.DRAFT && trip.report.status !== ReportStatus.NEEDS_REVISION) {
+    if (
+      trip.report.status !== ReportStatus.DRAFT &&
+      trip.report.status !== ReportStatus.NEEDS_REVISION &&
+      trip.report.status !== ReportStatus.REJECTED
+    ) {
       return NextResponse.json({ error: 'Cannot delete trips from a report in its current state' }, { status: 409 })
     }
 

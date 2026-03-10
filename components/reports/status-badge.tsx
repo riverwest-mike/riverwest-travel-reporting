@@ -10,7 +10,7 @@ export function StatusBadge({ status }: { status: ReportStatus }) {
     case ReportStatus.APPROVED:
       return <Badge variant="success">Approved</Badge>
     case ReportStatus.NEEDS_REVISION:
-      return <Badge variant="warning">Needs Revision</Badge>
+      return <Badge variant="info">Needs Revision</Badge>
     case ReportStatus.REJECTED:
       return <Badge variant="destructive">Rejected</Badge>
     default:

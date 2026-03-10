@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { ReportStatus } from '@prisma/client'
+import { ReportStatus, EmployeeStatus } from '@prisma/client'
 import { notifyApproversOfSubmission } from '@/lib/email'
 import { formatPeriod } from '@/lib/utils'
 
@@ -38,10 +38,10 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       try {
         const approverLinks = await db.employeeApprover.findMany({
           where: { employeeId: employee.id },
-          include: { approver: { select: { email: true, name: true, isActive: true } } },
+          include: { approver: { select: { email: true, name: true, status: true } } },
         })
         const activeApprovers = approverLinks
-          .filter((a) => a.approver.isActive)
+          .filter((a) => a.approver.status === EmployeeStatus.ACTIVE)
           .map((a) => ({ email: a.approver.email, name: a.approver.name }))
 
         if (activeApprovers.length > 0) {

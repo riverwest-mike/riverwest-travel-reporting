@@ -42,7 +42,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     }
 
     return NextResponse.json(report)
-  } catch {
+  } catch (err) {
+    console.error('[GET /api/reports/:id]', err)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 }
@@ -71,13 +72,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       where: { id: params.id },
       data: {
         ...(notes !== undefined && { notes }),
-        ...(mileageRate !== undefined && { mileageRate: Number(mileageRate) }),
+        // Only admin/AO can update the mileage rate on an existing report
+        ...(mileageRate !== undefined && isAdminOrAO && { mileageRate: Number(mileageRate) }),
       },
     })
 
     return NextResponse.json(updated)
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  } catch (err) {
+    console.error('[PATCH /api/reports/:id]', err)
+    return NextResponse.json({ error: 'Failed to update report' }, { status: 500 })
   }
 }
 

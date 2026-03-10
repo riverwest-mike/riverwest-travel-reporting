@@ -38,5 +38,3 @@ export function getCurrentPeriod(): { month: number; year: number } {
   const now = new Date()
   return { month: now.getMonth() + 1, year: now.getFullYear() }
 }
-
-export const MILEAGE_RATE = parseFloat(process.env.MILEAGE_RATE ?? '0.70')
