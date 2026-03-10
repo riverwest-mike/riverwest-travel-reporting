@@ -3,7 +3,7 @@ import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { ReportStatus } from '@prisma/client'
 import { recalcReportTotals } from '@/lib/reports'
-import { calculateDistance, buildAddress } from '@/lib/mileage'
+import { calculateDistance } from '@/lib/mileage'
 import { DEFAULT_OFFICE_ADDRESS } from '@/lib/constants'
 
 function tripMatchesKey(
@@ -65,8 +65,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Purpose / Notes is required for each trip' }, { status: 400 })
     }
 
-    const tripDate = new Date(date)
-    if (tripDate > new Date()) {
+    // Compare date strings to avoid UTC midnight vs local timezone issues
+    const today = new Date().toISOString().split('T')[0]
+    if (date > today) {
       return NextResponse.json({ error: 'Trip date cannot be in the future' }, { status: 400 })
     }
 
@@ -75,10 +76,15 @@ export async function POST(request: NextRequest) {
     if (report.employeeId !== employee.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (report.status !== ReportStatus.DRAFT && report.status !== ReportStatus.NEEDS_REVISION) {
+    if (
+      report.status !== ReportStatus.DRAFT &&
+      report.status !== ReportStatus.NEEDS_REVISION &&
+      report.status !== ReportStatus.REJECTED
+    ) {
       return NextResponse.json({ error: 'Cannot add trips to a report in its current state' }, { status: 409 })
     }
 
+    const tripDate = new Date(date)
     const tripDateStr = tripDate.toDateString()
     const tripKey = { originType, originPropertyId, originAddress, destinationType, destinationPropertyId, destinationAddress }
 

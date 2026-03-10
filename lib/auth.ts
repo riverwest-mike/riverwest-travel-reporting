@@ -1,9 +1,11 @@
+import { cache } from 'react'
 import { headers } from 'next/headers'
 import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { Role, EmployeeStatus } from '@prisma/client'
+import { DEFAULT_OFFICE_ADDRESS } from '@/lib/constants'
 
-export async function getEmployee() {
+export const getEmployee = cache(async function getEmployee() {
   const userId = (await headers()).get('x-clerk-user-id')
   if (!userId) return null
 
@@ -36,7 +38,7 @@ export async function getEmployee() {
           email,
           role: Role.EMPLOYEE,
           status: EmployeeStatus.PENDING,
-          homeAddress: '4215 Worth Ave, Columbus, OH 43219',
+          homeAddress: DEFAULT_OFFICE_ADDRESS,
         },
       })
 
@@ -46,12 +48,12 @@ export async function getEmployee() {
   }
 
   return employee
-}
+})
 
 async function notifyAdminsOfNewSignup(name: string, email: string) {
   const { notifyApplicationOwnerOfNewUser } = await import('@/lib/email')
   const admins = await db.employee.findMany({
-    where: { role: { in: [Role.ADMIN, Role.APPLICATION_OWNER] }, isActive: true },
+    where: { role: { in: [Role.ADMIN, Role.APPLICATION_OWNER] }, status: EmployeeStatus.ACTIVE },
     select: { email: true, name: true },
   })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'

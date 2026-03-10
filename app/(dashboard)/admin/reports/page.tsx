@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { requireEmployee } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { Role, ReportStatus } from '@prisma/client'
+import { Role, ReportStatus, EmployeeStatus } from '@prisma/client'
 import { StatusBadge } from '@/components/reports/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -50,7 +50,8 @@ export default async function AdminReportsPage({
     where.employee = { approvers: { some: { approverId: searchParams.managerId } } }
   }
 
-  const [allMatchingReports, employees, managers] = await Promise.all([
+  const [total, reports, employees, managers] = await Promise.all([
+    db.expenseReport.count({ where }),
     db.expenseReport.findMany({
       where,
       include: {
@@ -59,22 +60,22 @@ export default async function AdminReportsPage({
         _count: { select: { trips: true } },
       },
       orderBy: [{ createdAt: 'desc' }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
     db.employee.findMany({
-      where: { isActive: true },
+      where: { status: EmployeeStatus.ACTIVE },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
     db.employee.findMany({
-      where: { isActive: true, role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] } },
+      where: { status: EmployeeStatus.ACTIVE, role: { in: [Role.MANAGER, Role.ADMIN, Role.APPLICATION_OWNER] } },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
   ])
 
-  const total = allMatchingReports.length
   const totalPages = Math.ceil(total / PAGE_SIZE)
-  const reports = allMatchingReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // Build query string for bulk export (same filters, no pagination)
   const exportParams = new URLSearchParams()

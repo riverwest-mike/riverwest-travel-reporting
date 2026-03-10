@@ -1,16 +1,14 @@
 import nodemailer from 'nodemailer'
 
-function createTransport() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT ?? '587'),
-    secure: process.env.SMTP_PORT === '465',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  })
-}
+const transport = nodemailer.createTransport({
+  host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT ?? '587'),
+  secure: process.env.SMTP_PORT === '465',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD,
+  },
+})
 
 const FROM = () => process.env.SMTP_FROM ?? `"RiverWest Properties" <${process.env.SMTP_USER}>`
 
@@ -43,7 +41,6 @@ interface SendReportEmailOptions {
 }
 
 export async function sendReportToAccounting(opts: SendReportEmailOptions) {
-  const transport = createTransport()
   const accountingEmail = process.env.ACCOUNTING_EMAIL ?? 'controller@riverwestpartners.com'
 
   await transport.sendMail({
@@ -100,7 +97,6 @@ interface NotifyApproversOptions {
 }
 
 export async function notifyApproversOfSubmission(opts: NotifyApproversOptions) {
-  const transport = createTransport()
   const subject = opts.isResubmission
     ? `Resubmitted: Expense Report ${opts.reportNumber} from ${opts.employeeName}`
     : `Action Required: Expense Report ${opts.reportNumber} submitted by ${opts.employeeName}`
@@ -148,24 +144,6 @@ export async function notifyApproversOfSubmission(opts: NotifyApproversOptions) 
   )
 }
 
-// ── Keep backward-compat alias ─────────────────────────────────────────────
-export async function notifyManagerOfSubmission(opts: {
-  employeeName: string
-  reportNumber: string
-  period: string
-  managerEmail: string
-  managerName: string
-  reportUrl: string
-}) {
-  return notifyApproversOfSubmission({
-    employeeName: opts.employeeName,
-    reportNumber: opts.reportNumber,
-    period: opts.period,
-    approvers: [{ email: opts.managerEmail, name: opts.managerName }],
-    reportUrl: opts.reportUrl,
-  })
-}
-
 // ── Notify employee of approval/revision decision ─────────────────────────
 
 interface TripNote {
@@ -187,7 +165,6 @@ interface NotifyEmployeeOptions {
 }
 
 export async function notifyEmployeeOfDecision(opts: NotifyEmployeeOptions) {
-  const transport = createTransport()
   const statusLabel = opts.approved ? 'Approved ✓' : 'Sent Back for Revision'
   const statusColor = opts.approved ? '#16a34a' : '#d97706'
 
@@ -264,7 +241,6 @@ interface NotifyAONewUserOptions {
 }
 
 export async function notifyApplicationOwnerOfNewUser(opts: NotifyAONewUserOptions) {
-  const transport = createTransport()
 
   await transport.sendMail({
     from: FROM(),
@@ -307,7 +283,6 @@ interface NotifyActivationOptions {
 }
 
 export async function notifyUserActivated(opts: NotifyActivationOptions) {
-  const transport = createTransport()
 
   await transport.sendMail({
     from: FROM(),

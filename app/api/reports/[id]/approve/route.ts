@@ -105,16 +105,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         const fileName = `Accounting_${report.reportNumber}_${report.employee.name.replace(/\s+/g, '_')}.xlsx`
         const accountingEmail = process.env.ACCOUNTING_EMAIL ?? 'controller@riverwestpartners.com'
 
-        await sendReportToAccounting({
-          employeeName: report.employee.name,
-          reportNumber: report.reportNumber,
-          period,
-          managerEmail: approver.email,
-          managerName: approver.name,
-          excelBuffer,
-          fileName,
-        })
-
+        // Create the audit log first — if email fails we still have a record
         await db.accountingExportLog.create({
           data: {
             fileName,
@@ -127,6 +118,16 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
             reportNumber: report.reportNumber,
             expenseReportId: report.id,
           },
+        })
+
+        await sendReportToAccounting({
+          employeeName: report.employee.name,
+          reportNumber: report.reportNumber,
+          period,
+          managerEmail: approver.email,
+          managerName: approver.name,
+          excelBuffer,
+          fileName,
         })
 
         await notifyEmployeeOfDecision({

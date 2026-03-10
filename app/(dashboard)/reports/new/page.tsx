@@ -34,7 +34,7 @@ export default function NewReportPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]
+  const years = [now.getFullYear() - 1, now.getFullYear()]
 
   async function handleCreate() {
     setLoading(true)
