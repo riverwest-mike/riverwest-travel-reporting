@@ -338,10 +338,10 @@ function SidebarNavItem({
       href={href}
       onClick={onNav}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors',
+        'flex items-center gap-3 py-2.5 rounded-sm text-sm transition-colors pr-3',
         active
-          ? 'bg-white/15 text-white font-medium'
-          : 'text-navy-200 hover:bg-white/10 hover:text-white'
+          ? 'border-l-2 border-gold-400 bg-white/10 text-white font-medium pl-[10px]'
+          : 'border-l-2 border-transparent text-navy-200 hover:bg-white/8 hover:text-white pl-[10px]'
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />

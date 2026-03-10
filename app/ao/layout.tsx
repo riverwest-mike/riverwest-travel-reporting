@@ -48,7 +48,7 @@ export default async function AOLayout({ children }: { children: React.ReactNode
         employeeActionCount={employeeActionCount}
         pendingUsersCount={pendingUsersCount}
       />
-      <main className="flex-1 bg-gray-50">
+      <main className="flex-1 bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">{children}</div>
       </main>
       <FloatingHelpButton />
