@@ -1,7 +1,13 @@
 import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
-import { Playfair_Display } from 'next/font/google'
+import { Inter, Playfair_Display } from 'next/font/google'
 import './globals.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -18,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={playfair.variable}>{children}</body>
+        <body className={`${inter.variable} ${playfair.variable} font-sans antialiased`}>{children}</body>
       </html>
     </ClerkProvider>
   )

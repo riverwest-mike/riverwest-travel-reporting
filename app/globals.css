@@ -4,26 +4,40 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    /* Warm off-white background — not pure gray */
+    --background: 42 18% 97%;
+    --foreground: 220 25% 13%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 25% 13%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 25% 13%;
+
+    /* Navy #1E3A5F */
     --primary: 214 52% 24%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 30% 91%;
+
+    /* Warm secondary */
+    --secondary: 40 18% 92%;
     --secondary-foreground: 214 52% 24%;
-    --muted: 214 20% 95%;
-    --muted-foreground: 214 20% 45%;
-    --accent: 44 67% 47%;
+
+    /* Warm muted */
+    --muted: 40 15% 93%;
+    --muted-foreground: 220 12% 48%;
+
+    /* Gold accent #C9A84C */
+    --accent: 42 55% 53%;
     --accent-foreground: 0 0% 100%;
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
+
+    /* Warm hairline border */
+    --border: 40 14% 87%;
+    --input: 40 14% 87%;
     --ring: 214 52% 24%;
-    --radius: 0.5rem;
+    --radius: 0.375rem;
   }
 }
 
@@ -33,5 +47,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }

@@ -19,6 +19,7 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         playfair: ['var(--font-playfair)', 'Georgia', 'serif'],
       },
       colors: {
@@ -68,9 +69,13 @@ const config: Config = {
           900: '#0b1724',
         },
         gold: {
-          400: '#d4af37',
-          500: '#c5a028',
-          600: '#a8891e',
+          300: '#e8d5a3',
+          400: '#c9a84c',
+          500: '#b8962e',
+          600: '#9a7d1e',
+        },
+        stone: {
+          warm: '#FAFAF7',
         },
       },
       borderRadius: {
